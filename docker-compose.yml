@@ -1,60 +1,67 @@
-web:
-  build: cloudpebble/
-  ports:
-    - "80:80"
-  volumes:
-    - "./cloudpebble/:/code"
-  links:
-    - redis
-    - postgres
-    - s3
-    - qemu
-    - ycmd
-  environment:
-    - DEBUG="yes"
-    - RUN_WEB="yes"
-    - AWS_ENABLED="yes"
-    - PORT=80
-    # On MAC - go to your settings -> Network -> copy IP address
-    # NOTE: you can NOT use 127.0.0.1 or 0.0.0.0 because it will be the machine's IP address, not your PC's address
-    - AWS_S3_FAKE_S3=192.168.76.5:8003
-    - MEDIA_URL=http://192.168.76.5:8003/builds.cloudpebble.net/
-    - QEMU_URLS=http://192.168.76.5:8001/
-    - YCM_URLS=http://192.168.76.5:8002/
-    - PUBLIC_URL=http://192.168.76.5/
-    - LIBPEBBLE_PROXY=wss://cloudpebble-ws.herokuapp.com/tool
-    - PEBBLE_AUTH_URL=https://auth.rebble.io
-celery:
-  build: cloudpebble/
-  volumes:
-    - "./cloudpebble/:/code"
-  links:
-    - redis
-    - postgres
-    - s3
-  environment:
-    - DEBUG="yes"
-    - RUN_CELERY="yes"
-    - AWS_ENABLED=yes
-    - EXPORT_ROOT=http://192.168.76.5/export.cloudpebble.net/
-    - AWS_S3_FAKE_S3=192.168.76.5:8003
-qemu:
-  build: cloudpebble-qemu-controller/
-  volumes:
-    - "./cloudpebble-qemu-controller/:/code"
-  ports:
-    - "8001:80"
-ycmd:
-  build: cloudpebble-ycmd-proxy/
-  volumes:
-    - "./cloudpebble-ycmd-proxy/:/code"
-  ports:
-    - "8002:80"
-redis:
-  image: redis
-postgres:
-  image: postgres
-s3:
-  image: kuracloud/fake-s3
-  ports:
-    - "8003:4569"
+name: cloudpebble
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - qemu
+      - ycmd
+
+  web:
+    build: cloudpebble/
+    links:
+      - redis
+      - postgres
+      - s3
+      - qemu
+      - ycmd
+    environment:
+      - DEBUG=yes
+      - RUN_WEB=yes
+      - AWS_ENABLED=yes
+      - PORT=80
+      - AWS_S3_FAKE_S3=s3:4569
+      - MEDIA_URL=${PUBLIC_URL}/s3builds/
+      - QEMU_URLS=${PUBLIC_URL}/
+      - YCM_URLS=${PUBLIC_URL}/ycmd/
+      - PUBLIC_URL=${PUBLIC_URL}/
+      - EXPECT_SSL=${EXPECT_SSL:-no}
+      - LIBPEBBLE_PROXY=wss://cloudpebble-ws.herokuapp.com/tool
+      - PEBBLE_AUTH_URL=https://auth.rebble.io
+
+  celery:
+    build: cloudpebble/
+    links:
+      - redis
+      - postgres
+      - s3
+    environment:
+      - DEBUG=yes
+      - RUN_CELERY=yes
+      - AWS_ENABLED=yes
+      - EXPORT_ROOT=http://web:80/export.cloudpebble.net/
+      - AWS_S3_FAKE_S3=s3:4569
+
+  qemu:
+    build: cloudpebble-qemu-controller/
+
+  ycmd:
+    build: cloudpebble-ycmd-proxy/
+
+  redis:
+    image: redis
+
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+
+  s3:
+    image: kuracloud/fake-s3
+    ports:
+      - "8003:4569"
