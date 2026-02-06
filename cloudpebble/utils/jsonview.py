@@ -10,7 +10,7 @@ from django import http
 from django.core.handlers.base import BaseHandler
 from django.conf import settings
 from django.core.signals import got_request_exception
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.core.exceptions import PermissionDenied, ValidationError
 
 JSON = 'application/json'

@@ -115,7 +115,7 @@ def extract_library_headers(root_dir):
 
 def make_library_info(dependencies, versions, headers):
     libs = {}
-    for name, version in versions.iteritems():
+    for name, version in versions.items():
         if version and name in dependencies:
             libs[name] = {
                 'headers': [],

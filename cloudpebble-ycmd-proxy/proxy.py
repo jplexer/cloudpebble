@@ -82,7 +82,7 @@ def server_ws(process_uuid):
 
             # Run the specified command with the correct uuid and data
             try:
-                print "Running command: %s" % command
+                print("Running command: %s") % command
                 ycms = ycm_helpers.get_ycms(process_uuid)
                 result = ws_commands[command](ycms, data)
             except ycm_helpers.YCMProxyException as e:
@@ -100,7 +100,7 @@ def server_ws(process_uuid):
     finally:
         ycm_helpers.kill_completer(process_uuid)
 
-    print "Closing websocket"
+    print("Closing websocket")
 
     return ''
 
@@ -112,7 +112,7 @@ def ycm_ws(process_uuid):
 
 @atexit.register
 def kill_completers():
-    print "Shutting down completers"
+    print("Shutting down completers")
     ycm_helpers.kill_completers()
 
 
@@ -143,7 +143,7 @@ def run_server():
 
     ssl_args = {}
     if settings.SSL_ROOT is not None:
-        print "Running with SSL"
+        print("Running with SSL")
         ssl_args = {
             'keyfile': os.path.join(settings.SSL_ROOT, 'server-key.pem'),
             'certfile': os.path.join(settings.SSL_ROOT, 'server-cert.pem'),

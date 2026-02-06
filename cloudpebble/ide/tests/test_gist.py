@@ -20,7 +20,7 @@ class FakeGist(object):
     def __init__(self, description=None, files=None):
         self.description = description
         self.files = files or {}
-        for name, content in files.iteritems():
+        for name, content in files.items():
             self.files[name] = FakeFile(content, '')
 
 
@@ -112,9 +112,9 @@ class TestImportProject(CloudpebbleTestCase):
         self.assertEqual(project.app_company_name, 'test')
         self.assertEqual(project.app_is_watchface, False)
 
-    @mock.patch('ide.tasks.gist.urllib2')
-    def test_native_project_files(self, urllib2):
-        urllib2.urlopen.return_value.read.return_value = ''
+    @mock.patch('ide.tasks.gist.urlopen')
+    def test_native_project_files(self, mock_urlopen):
+        mock_urlopen.return_value.read.return_value = ''
         project = self.runTest({
             'main.c': '',
             'package.json': json.dumps({"pebble": {"resources": {"media": [{

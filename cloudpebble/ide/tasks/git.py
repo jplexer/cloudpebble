@@ -1,10 +1,11 @@
 import base64
-import urllib2
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 import json
 import os
 import logging
 
-from celery import task
+from celery import shared_task
 from django.conf import settings
 from django.utils.timezone import now
 from github.GithubObject import NotSet
@@ -24,12 +25,12 @@ __author__ = 'katharine'
 logger = logging.getLogger(__name__)
 
 
-@task(acks_late=True)
+@shared_task(acks_late=True)
 def do_import_github(project_id, github_user, github_project, github_branch, delete_project=False):
     try:
         url = "https://github.com/%s/%s/archive/%s.zip" % (github_user, github_project, github_branch)
         if file_exists(url):
-            u = urllib2.urlopen(url)
+            u = urlopen(url)
             return do_import_archive(project_id, u.read())
         else:
             raise Exception("The branch '%s' does not exist." % github_branch)
@@ -57,10 +58,10 @@ def do_import_github(project_id, github_user, github_project, github_branch, del
 
 
 def file_exists(url):
-    request = urllib2.Request(url)
+    request = Request(url)
     request.get_method = lambda: 'HEAD'
     try:
-        urllib2.urlopen(request)
+        urlopen(request)
     except:
         return False
     else:
@@ -288,7 +289,7 @@ def github_pull(user, project):
 
     # Now we grab the zip.
     zip_url = repo.get_archive_link('zipball', branch_name)
-    u = urllib2.urlopen(zip_url)
+    u = urlopen(zip_url)
 
     # And wipe the project!
     # TODO: transaction support for file contents would be nice...
@@ -311,19 +312,19 @@ def github_pull(user, project):
     return import_result
 
 
-@task
+@shared_task
 def do_github_push(project_id, commit_message):
     project = Project.objects.select_related('owner__github').get(pk=project_id)
     return github_push(project.owner, commit_message, project.github_repo, project)
 
 
-@task
+@shared_task
 def do_github_pull(project_id):
     project = Project.objects.select_related('owner__github').get(pk=project_id)
     return github_pull(project.owner, project)
 
 
-@task
+@shared_task
 def hooked_commit(project_id, target_commit):
     project = Project.objects.select_related('owner__github').get(pk=project_id)
     did_something = False

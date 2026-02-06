@@ -5,9 +5,9 @@ from collections import OrderedDict
 
 from django.db import models
 from django.utils.timezone import now
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.core.validators import RegexValidator, ValidationError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from ide.models.s3file import S3File
 from ide.models.textfile import TextFile
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class ResourceFile(IdeModel):
-    project = models.ForeignKey('Project', related_name='resources')
+    project = models.ForeignKey('Project', related_name='resources', on_delete=models.CASCADE)
     RESOURCE_KINDS = (
         ('raw', _('Binary blob')),
         ('bitmap', _('Bitmap Image')),
@@ -91,7 +91,7 @@ class ResourceFile(IdeModel):
 
 
 class ResourceVariant(S3File):
-    resource_file = models.ForeignKey(ResourceFile, related_name='variants')
+    resource_file = models.ForeignKey(ResourceFile, related_name='variants', on_delete=models.CASCADE)
 
     VARIANT_DEFAULT = 0
     VARIANT_MONOCHROME = 1
@@ -140,7 +140,7 @@ class ResourceVariant(S3File):
 
     TAGS_DEFAULT = ""
 
-    tags = models.CommaSeparatedIntegerField(max_length=50, blank=True)
+    tags = models.CharField(max_length=50, blank=True)  # Was CommaSeparatedIntegerField
     is_legacy = models.BooleanField(default=False)  # True for anything migrated out of ResourceFile
 
     # The following three properties are overridden to support is_legacy
@@ -194,7 +194,7 @@ class ResourceVariant(S3File):
 
 
 class ResourceIdentifier(IdeModel):
-    resource_file = models.ForeignKey(ResourceFile, related_name='identifiers')
+    resource_file = models.ForeignKey(ResourceFile, related_name='identifiers', on_delete=models.CASCADE)
     resource_id = models.CharField(max_length=100, validators=regexes.validator('c_identifier', _("Invalid resource ID.")))
     character_regex = models.CharField(max_length=100, blank=True, null=True)
     tracking = models.IntegerField(blank=True, null=True)
@@ -251,7 +251,7 @@ class ResourceIdentifier(IdeModel):
 
 
 class SourceFile(TextFile):
-    project = models.ForeignKey('Project', related_name='source_files')
+    project = models.ForeignKey('Project', related_name='source_files', on_delete=models.CASCADE)
     file_name = models.CharField(max_length=100, validators=regexes.validator('source_file_name', _('Invalid file name.')))
 
     folder = 'sources'

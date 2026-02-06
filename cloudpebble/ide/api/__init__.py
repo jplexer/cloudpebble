@@ -1,4 +1,5 @@
-import urllib2
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 import json
 from celery.result import AsyncResult
 from django.contrib.auth.decorators import login_required
@@ -88,9 +89,9 @@ def get_shortlink(request):
     from utils.td_helper import send_td_event
     url = request.POST['url']
     try:
-        r = urllib2.Request('http://api.small.cat/entries', json.dumps({'value': url, 'duration': 60}), headers={'Content-Type': 'application/json'})
-        response = json.loads(urllib2.urlopen(r).read())
-    except urllib2.URLError as e:
+        r = Request('http://api.small.cat/entries', json.dumps({'value': url, 'duration': 60}), headers={'Content-Type': 'application/json'})
+        response = json.loads(urlopen(r).read())
+    except URLError as e:
         return json_failure(str(e))
     else:
         send_td_event('cloudpebble_generate_shortlink', data={

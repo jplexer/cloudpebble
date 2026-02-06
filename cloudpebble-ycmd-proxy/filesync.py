@@ -6,7 +6,7 @@ import errno
 
 class FileSync(object):
     def __init__(self, root_dir):
-        assert isinstance(root_dir, basestring)
+        assert isinstance(root_dir, str)
         self.root_dir = root_dir
 
     def apply_patches(self, patch_sequence):

@@ -163,7 +163,7 @@ idle_killer = gevent.spawn(_kill_idle_emulators)
 
 @atexit.register
 def kill_emulators():
-    for emulator in emulators.itervalues():
+    for emulator in emulators.values():
         emulator.kill()
     emulators.clear()
 

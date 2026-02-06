@@ -1,6 +1,6 @@
 from django.http import HttpResponse
 
-from StringIO import StringIO
+from io import StringIO
 import qrcode
 
 

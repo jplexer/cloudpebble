@@ -1,10 +1,10 @@
 import uuid
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.utils import simplejson as json, simplejson
+import json
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_safe, require_POST
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 import requests
 from utils.redis_helper import redis_client

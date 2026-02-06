@@ -1,4 +1,4 @@
-from social.backends.oauth import BaseOAuth2
+from social_core.backends.oauth import BaseOAuth2
 from django.conf import settings
 from ide.models.user import UserGithub
 from ide.models.project import Project

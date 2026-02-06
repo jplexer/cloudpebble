@@ -5,7 +5,7 @@ import shutil
 from django.conf import settings
 
 from ide.models import ResourceFile
-from manifest import manifest_name_for_project, generate_manifest_dict
+from .manifest import manifest_name_for_project, generate_manifest_dict
 from ide.utils.sdk import generate_wscript_file, generate_jshint_file
 
 

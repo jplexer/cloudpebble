@@ -3,7 +3,7 @@ __author__ = 'katharine'
 import json
 import requests
 import random
-import urlparse
+from urllib import parse as urlparse
 import string
 import logging
 
@@ -11,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from utils.redis_helper import redis_client
 from utils.jsonview import json_view, InternalServerError
@@ -41,7 +41,7 @@ def launch_emulator(request):
     if qemu_instance is not None:
         qemu_instance = json.loads(qemu_instance)
         try:
-            response = requests.post(qemu_instance['ping_url'], timeout=2)
+            response = requests.post(qemu_instance["ping_url"], timeout=2, verify=False)
             response.raise_for_status()
             response = response.json()
         except (requests.RequestException, ValueError) as e:
@@ -65,7 +65,7 @@ def launch_emulator(request):
                                          'oauth': oauth,
                                          'tz_offset': tz_offset},
                                    headers={'Authorization': settings.QEMU_LAUNCH_AUTH_HEADER},
-                                   timeout=settings.QEMU_LAUNCH_TIMEOUT)
+                                   timeout=settings.QEMU_LAUNCH_TIMEOUT, verify=False)
             result.raise_for_status()
             response = result.json()
             url = urlparse.urlsplit(server)
@@ -114,4 +114,4 @@ def handle_phone_token(request, token):
 def _generate_token():
     rng = random.SystemRandom()
     valid = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(rng.choice(valid) for i in xrange(30))
+    return ''.join(rng.choice(valid) for i in range(30))

@@ -6,7 +6,7 @@ from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST, require_safe
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from ide.models.project import Project
 from ide.models.files import SourceFile
 from utils.td_helper import send_td_event

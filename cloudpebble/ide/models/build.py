@@ -1,4 +1,4 @@
-import uuid
+import uuid as uuid_module
 import json
 import shutil
 import os
@@ -6,13 +6,18 @@ import os.path
 from django.conf import settings
 from django.db import models
 from ide.models.project import Project
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from ide.models.meta import IdeModel
 from ide.utils.regexes import regexes
 
 import utils.s3 as s3
 __author__ = 'katharine'
+
+
+def generate_uuid():
+    """Generate a UUID string - used as default for models."""
+    return str(uuid_module.uuid4())
 
 
 class BuildResult(IdeModel):
@@ -36,8 +41,8 @@ class BuildResult(IdeModel):
     DEBUG_APP = 0
     DEBUG_WORKER = 1
 
-    project = models.ForeignKey(Project, related_name='builds')
-    uuid = models.CharField(max_length=36, default=lambda: str(uuid.uuid4()), validators=regexes.validator('uuid', _('Invalid UUID.')))
+    project = models.ForeignKey(Project, related_name='builds', on_delete=models.CASCADE)
+    uuid = models.CharField(max_length=36, default=generate_uuid, validators=regexes.validator('uuid', _('Invalid UUID.')))
     state = models.IntegerField(choices=STATE_CHOICES, default=STATE_WAITING)
     started = models.DateTimeField(auto_now_add=True, db_index=True)
     finished = models.DateTimeField(blank=True, null=True)
@@ -143,7 +148,7 @@ class BuildResult(IdeModel):
 
 
 class BuildSize(IdeModel):
-    build = models.ForeignKey(BuildResult, related_name='sizes')
+    build = models.ForeignKey(BuildResult, related_name='sizes', on_delete=models.CASCADE)
 
     platform = models.CharField(max_length=20)
 

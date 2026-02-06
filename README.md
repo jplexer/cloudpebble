@@ -1,6 +1,50 @@
 # CloudPebble Composed
 
-CloudPebble is a web-based IDE for developing Pebble smartwatch applications. This repository assembles all CloudPebble components via Docker Compose into a fully functional local development environment.
+CloudPebble is a web-based IDE for developing Pebble smartwatch applications. This repository assembles all CloudPebble components via Docker Compose into a fully functional development environment.
+
+**Updated February 2026** to work with modern Docker, fix EOL Debian repos, and support HTTPS deployments.
+
+## Quick Start
+
+### Local Development
+
+```bash
+# 1. Clone this repo
+git clone https://github.com/coredevices/cloudpebble.git
+cd cloudpebble
+
+# 2. Set your public URL
+export PUBLIC_URL=http://localhost:8080
+
+# 3. Build and run
+docker compose build
+docker compose up
+
+# 4. Open http://localhost:8080 and register an account
+```
+
+### HTTPS Deployment (Production)
+
+For HTTPS deployments behind a reverse proxy:
+
+```bash
+export PUBLIC_URL=https://your-domain.com
+export EXPECT_SSL=yes
+docker compose build
+docker compose up -d
+```
+
+The nginx container listens on port 8080. Configure your reverse proxy to forward HTTPS traffic to it.
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Emulator won't start | Check that QEMU_URLS points to your PUBLIC_URL |
+| App install fails | Verify `/s3builds/` proxy: `curl -I ${PUBLIC_URL}/s3builds/test` |
+| SSL errors | Set `EXPECT_SSL=yes` for HTTPS deployments |
+
+---
 
 ## Table of Contents
 
@@ -18,8 +62,8 @@ CloudPebble is a web-based IDE for developing Pebble smartwatch applications. Th
 - [Frontend Architecture](#frontend-architecture)
 - [Build System](#build-system)
 - [Data Flows](#data-flows)
-- [Getting Started](#getting-started)
 - [Configuration Reference](#configuration-reference)
+- [2026 Updates](#2026-updates)
 - [Limitations](#limitations)
 - [Modernization Proposal](#modernization-proposal)
 
@@ -41,6 +85,14 @@ CloudPebble is a web-based IDE for developing Pebble smartwatch applications. Th
 │  └─────────────────────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────┬───────────────────────────────────────────────┘
                                       │ HTTP/WebSocket
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              NGINX CONTAINER (Port 8080)                             │
+│  ├── Reverse proxy for web app                                                      │
+│  ├── WebSocket routing (/qemu/*, /ycm/*)                                            │
+│  └── S3 builds proxy (/s3builds/*)                                                  │
+└─────────────────────────────────────┬───────────────────────────────────────────────┘
+                                      │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │                              WEB CONTAINER (Port 80)                                 │
@@ -221,7 +273,7 @@ CloudPebble is a web-based IDE for developing Pebble smartwatch applications. Th
 
 ### 1. Web Container
 
-**Image:** Custom (Python 2.7.11 + Node.js 10.15.3)  
+**Image:** Custom (Python 2.7.11 + Node.js 16.x)  
 **Port:** 80  
 **Build Context:** `cloudpebble/`
 
@@ -265,11 +317,12 @@ python manage.py runserver 0.0.0.0:$PORT
 |----------|---------|---------|
 | `DEBUG` | `yes` | Enable debug mode |
 | `RUN_WEB` | `yes` | Run web server (not celery) |
-| `AWS_S3_FAKE_S3` | `192.168.76.5:8003` | fake-s3 endpoint |
-| `MEDIA_URL` | `http://192.168.76.5:8003/builds.cloudpebble.net/` | Build artifact URL |
-| `QEMU_URLS` | `http://192.168.76.5:8001/` | QEMU controller endpoint |
-| `YCM_URLS` | `http://192.168.76.5:8002/` | YCMD proxy endpoint |
-| `PUBLIC_URL` | `http://192.168.76.5/` | Public-facing URL |
+| `PUBLIC_URL` | `https://cloudpebble.example.com` | Public-facing URL |
+| `EXPECT_SSL` | `yes` | Enable HTTPS mode |
+| `AWS_S3_FAKE_S3` | `s3:4569` | fake-s3 endpoint |
+| `MEDIA_URL` | `${PUBLIC_URL}/s3builds/` | Build artifact URL |
+| `QEMU_URLS` | `http://qemu/` | QEMU controller endpoint |
+| `YCM_URLS` | `http://ycmd/` | YCMD proxy endpoint |
 | `LIBPEBBLE_PROXY` | `wss://cloudpebble-ws.herokuapp.com/tool` | Phone install proxy |
 | `PEBBLE_AUTH_URL` | `https://auth.rebble.io` | OAuth endpoint |
 | `GITHUB_CLIENT_ID` | `Iv1.0729...` | GitHub OAuth app ID |
@@ -311,9 +364,6 @@ Background task worker sharing the same codebase as web.
 - `create_archive(project_id)` - Export as .zip
 - `do_import_archive(project_id, zip_data)` - Import from .zip
 
-**ide/tasks/gist.py**
-- `import_gist(user_id, gist_id)` - Import from GitHub Gist
-
 #### Resource Limits
 
 ```python
@@ -343,21 +393,6 @@ BROKER_POOL_LIMIT = 10
 
 Manages Pebble emulator instances with VNC display streaming.
 
-#### Build Process (Dockerfile)
-
-```dockerfile
-# 1. Build QEMU (Pebble fork)
-RUN curl -L https://github.com/iSevenDays/pebble_qemu/archive/v2.5.2-pebble4.tar.gz | tar xz
-RUN ./configure --target-list="arm-softmmu" && make -j4
-
-# 2. Install pypkjs (PebbleKit JS runtime)
-RUN git clone https://github.com/pebble/pypkjs.git --branch master
-RUN virtualenv /pypkjs/.env && pip install -r /pypkjs/requirements.txt
-
-# 3. Download firmware images
-RUN curl -L https://github.com/pebble/qemu-tintin-images/archive/v4.3.tar.gz | tar xz
-```
-
 #### API Endpoints
 
 | Endpoint | Method | Auth | Request | Response |
@@ -378,37 +413,11 @@ class Emulator:
         self._spawn_qemu()        # Start QEMU process
         gevent.sleep(4)           # Wait for boot
         self._spawn_pkjs()        # Start pypkjs
-
-    def _spawn_qemu(self):
-        # Platform-specific args
-        if platform == 'aplite':
-            args = ["-machine", "pebble-bb2", "-cpu", "cortex-m3"]
-        elif platform == 'basalt':
-            args = ["-machine", "pebble-snowy-bb", "-cpu", "cortex-m4"]
-        # ... chalk, diorite, emery
-        
-        subprocess.Popen([QEMU_BIN,
-            "-rtc", "base=localtime",
-            "-pflash", "qemu_micro_flash.bin",
-            "-serial", "tcp:127.0.0.1:{bt_port},server,nowait",
-            "-serial", "tcp:127.0.0.1:{console_port},server",
-            "-vnc", ":{display},password,websocket={vnc_ws_port}"
-        ] + args)
 ```
 
 #### Idle Killer
 
-Emulators are automatically killed after 5 minutes without a ping:
-
-```python
-def _kill_idle_emulators():
-    while True:
-        for key, emulator in emulators.items():
-            if now() - emulator.last_ping > 300:
-                emulator.kill()
-                del emulators[key]
-        gevent.sleep(60)
-```
+Emulators are automatically killed after 5 minutes without a ping.
 
 ---
 
@@ -419,22 +428,6 @@ def _kill_idle_emulators():
 **Build Context:** `cloudpebble-ycmd-proxy/`
 
 Code intelligence service providing autocomplete, errors, and go-to-definition.
-
-#### Build Process (Dockerfile)
-
-```dockerfile
-# 1. Build ycmd with Clang completer
-RUN git clone https://github.com/Valloric/ycmd.git /ycmd
-RUN cd /ycmd && git reset --hard 10c456c6e32487c2b75b9ee754a1f6cc6bf38a4f
-RUN python build.py --clang-completer
-
-# 2. Install ARM toolchain
-RUN curl -o /tmp/arm-cs-tools.tar https://cloudpebble-vagrant.s3.amazonaws.com/arm-cs-tools-stripped.tar
-RUN tar -xf /tmp/arm-cs-tools.tar -C /
-
-# 3. Install Pebble SDK
-RUN curl -L https://github.com/aveao/PebbleArchive/raw/master/SDKCores/sdk-core-4.3.tar.bz2 | tar xj -C /sdk3
-```
 
 #### Session Lifecycle
 
@@ -454,45 +447,6 @@ WebSocket /ycm/<uuid>/ws
 └── Return JSON responses
 ```
 
-#### .ycm_extra_conf.py Template
-
-```python
-def FlagsForFile(filename, **kwargs):
-    return {
-        'flags': [
-            '-x', 'c',
-            '-std=c11',
-            '-I', '{sdk}/include',
-            '-I', '{here}/include',
-            '-I', '{here}/build/aplite/applib',
-            '-I', '{stdlib}',
-            '-target', 'arm-none-eabi',
-            '-mcpu=cortex-m3',
-            '-mthumb',
-            '-DPBL_PLATFORM_APLITE',
-            '-DPBL_SDK_3',
-        ]
-    }
-```
-
-#### Generated Headers
-
-**__pebble_resource_ids__.h:**
-```c
-#pragma once
-#define RESOURCE_ID_FONT_GOTHIC_28 1
-#define RESOURCE_ID_IMAGE_LOGO 2
-// ...
-```
-
-**__pebble_messagekeys__.h:**
-```c
-#pragma once
-#define MESSAGE_KEY_temperature 0
-#define MESSAGE_KEY_conditions 1
-// ...
-```
-
 ---
 
 ### 5. Redis
@@ -501,10 +455,6 @@ def FlagsForFile(filename, **kwargs):
 **Port:** 6379
 
 Message broker for Celery and optional session/cache storage.
-
-**Usage:**
-- Database 1: Celery task queue and results
-- Database 0: (available for caching)
 
 ---
 
@@ -515,19 +465,6 @@ Message broker for Celery and optional session/cache storage.
 
 Primary relational database storing all application data.
 
-**Default Connection:**
-```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'HOST': 'postgres',
-        'PORT': 5432,
-    }
-}
-```
-
 ---
 
 ### 7. S3 Storage
@@ -535,15 +472,15 @@ DATABASES = {
 **Image:** `kuracloud/fake-s3`  
 **Port:** 8003 (mapped to internal 4569)
 
-S3-compatible object storage using fake-s3.
+S3-compatible object storage.
 
 **Buckets:**
 
-| Bucket | Purpose | Example Content |
-|--------|---------|-----------------|
-| `source.cloudpebble.net` | Source code | `user_123/project_456/src/main.c` |
-| `builds.cloudpebble.net` | Build artifacts | `build_789/watchapp.pbw` |
-| `export.cloudpebble.net` | Project exports | `export_abc123.zip` |
+| Bucket | Purpose |
+|--------|---------|
+| `source.cloudpebble.net` | Source code |
+| `builds.cloudpebble.net` | Build artifacts (.pbw) |
+| `export.cloudpebble.net` | Project exports |
 
 ---
 
@@ -555,9 +492,7 @@ S3-compatible object storage using fake-s3.
 class Project(models.Model):
     owner = models.ForeignKey(User)
     name = models.CharField(max_length=50)
-    last_modified = models.DateTimeField(auto_now_add=True)
     
-    # Project type
     project_type = models.CharField(choices=[
         ('native', 'Pebble C SDK'),
         ('simplyjs', 'Simply.js'),
@@ -567,97 +502,44 @@ class Project(models.Model):
     ])
     sdk_version = models.CharField(choices=[('2', 'SDK 2'), ('3', 'SDK 4')])
     
-    # App metadata
     app_uuid = models.CharField(max_length=36)
     app_company_name = models.CharField(max_length=100)
     app_short_name = models.CharField(max_length=100)
     app_long_name = models.CharField(max_length=100)
     app_version_label = models.CharField(max_length=40)
     app_is_watchface = models.BooleanField()
-    app_capabilities = models.CharField(max_length=255)  # comma-separated
     app_platforms = models.TextField()  # comma-separated
-    app_keys = models.TextField()  # JSON: {} or []
     
-    # Compilation
-    optimisation = models.CharField(choices=[
-        ('0', 'None'), ('1', 'Limited'), ('s', 'Size'),
-        ('2', 'Speed'), ('3', 'Aggressive')
-    ])
-    
-    # GitHub integration
     github_repo = models.CharField(max_length=100, null=True)
     github_branch = models.CharField(max_length=100, null=True)
-    github_last_sync = models.DateTimeField(null=True)
-    github_last_commit = models.CharField(max_length=40, null=True)
-    github_hook_uuid = models.CharField(max_length=36, null=True)
-    github_hook_build = models.BooleanField()
 ```
 
-### SourceFile
+### SourceFile / ResourceFile
 
 ```python
 class SourceFile(models.Model):
-    project = models.ForeignKey(Project, related_name='source_files')
+    project = models.ForeignKey(Project)
     file_name = models.CharField(max_length=100)
-    last_modified = models.DateTimeField(auto_now=True)
-    folded_lines = models.TextField(null=True)  # JSON array
-    
-    # Target (pkjs, app, worker, common)
-    target = models.CharField(max_length=10, default='app')
-    
+    target = models.CharField(max_length=10, default='app')  # pkjs, app, worker
     # Content stored in S3
-    s3_key = models.CharField(max_length=255)
-```
 
-### ResourceFile
-
-```python
 class ResourceFile(models.Model):
-    project = models.ForeignKey(Project, related_name='resources')
+    project = models.ForeignKey(Project)
     file_name = models.CharField(max_length=100)
-    kind = models.CharField(choices=[
-        ('png', 'PNG'), ('png-trans', 'PNG (transparent)'),
-        ('font', 'Font'), ('raw', 'Raw binary'), ('pbi', 'PBI')
-    ])
-    is_menu_icon = models.BooleanField()
-
-class ResourceIdentifier(models.Model):
-    resource_file = models.ForeignKey(ResourceFile, related_name='identifiers')
-    resource_id = models.CharField(max_length=100)  # e.g., "IMAGE_LOGO"
-    # Options: character_regex, tracking, compatibility, memory_format, etc.
-
-class ResourceVariant(models.Model):
-    resource_file = models.ForeignKey(ResourceFile, related_name='variants')
-    tags = models.CharField(max_length=255)  # e.g., "aplite,basalt~bw"
+    kind = models.CharField(choices=['png', 'font', 'raw', 'pbi'])
 ```
 
 ### BuildResult
 
 ```python
 class BuildResult(models.Model):
-    project = models.ForeignKey(Project, related_name='builds')
-    uuid = models.CharField(max_length=36)
-    
-    STATE_CHOICES = [
+    project = models.ForeignKey(Project)
+    state = models.IntegerField(choices=[
         (0, 'Waiting'), (1, 'Running'),
         (2, 'Succeeded'), (3, 'Failed')
-    ]
-    state = models.IntegerField(choices=STATE_CHOICES)
-    
+    ])
     started = models.DateTimeField(auto_now_add=True)
     finished = models.DateTimeField(null=True)
-    total_size = models.IntegerField(null=True)
-    
-    # S3 keys for artifacts
-    pbw_key = models.CharField(max_length=255, null=True)
-    build_log_key = models.CharField(max_length=255, null=True)
-
-class BuildSize(models.Model):
-    build = models.ForeignKey(BuildResult, related_name='sizes')
-    platform = models.CharField(max_length=20)
-    binary_size = models.IntegerField()
-    resource_size = models.IntegerField()
-    worker_size = models.IntegerField(null=True)
 ```
 
 ---
@@ -672,9 +554,7 @@ class BuildSize(models.Model):
 | `POST /ide/project/create` | POST | Create new project |
 | `GET /ide/project/<id>/info` | GET | Get project details |
 | `POST /ide/project/<id>/save_settings` | POST | Update project settings |
-| `POST /ide/project/<id>/save_dependencies` | POST | Update npm dependencies |
 | `POST /ide/project/<id>/delete` | POST | Delete project |
-| `POST /ide/project/<id>/export` | POST | Start export task |
 
 ### Source Files
 
@@ -683,17 +563,6 @@ class BuildSize(models.Model):
 | `POST /ide/project/<id>/create_source_file` | POST | Create file |
 | `GET /ide/project/<id>/source/<file_id>/load` | GET | Load file content |
 | `POST /ide/project/<id>/source/<file_id>/save` | POST | Save file content |
-| `POST /ide/project/<id>/source/<file_id>/rename` | POST | Rename file |
-| `POST /ide/project/<id>/source/<file_id>/delete` | POST | Delete file |
-
-### Resources
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `POST /ide/project/<id>/create_resource` | POST | Upload resource |
-| `GET /ide/project/<id>/resource/<res_id>/info` | GET | Get resource info |
-| `POST /ide/project/<id>/resource/<res_id>/update` | POST | Update resource |
-| `POST /ide/project/<id>/resource/<res_id>/delete` | POST | Delete resource |
 
 ### Builds
 
@@ -701,66 +570,25 @@ class BuildSize(models.Model):
 |----------|--------|---------|
 | `POST /ide/project/<id>/build/run` | POST | Start build |
 | `GET /ide/project/<id>/build/last` | GET | Get last build |
-| `GET /ide/project/<id>/build/history` | GET | Get build history |
 | `GET /ide/project/<id>/build/<build_id>/log` | GET | Get build log |
-
-### GitHub
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `POST /ide/project/<id>/github/repo` | POST | Set GitHub repo |
-| `POST /ide/project/<id>/github/repo/create` | POST | Create new repo |
-| `POST /ide/project/<id>/github/commit` | POST | Push to GitHub |
-| `POST /ide/project/<id>/github/pull` | POST | Pull from GitHub |
-
-### Emulator
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `POST /ide/emulator/launch` | POST | Launch emulator |
-| `GET /ide/emulator/config` | GET | Emulator config page |
 
 ---
 
 ## Frontend Architecture
 
-### JavaScript Files (57 total)
+### JavaScript (57 files)
 
-**Core:**
-- `ide.js` - Main application entry point
-- `sidebar.js` - Project navigation
-- `editor.js` - CodeMirror wrapper
-
-**Features:**
-- `emulator.js` - QEMU integration, noVNC display
-- `autocomplete.js` - YCMD WebSocket client
-- `compilation.js` - Build management
-- `github.js` - GitHub sync UI
-- `resources.js` - Resource management
-- `settings.js` - Project settings
-
-**Libraries:**
-- `libpebble/` - Pebble protocol implementation
-- `noVNC/` - VNC client for emulator display
+**Core:** `ide.js`, `sidebar.js`, `editor.js`  
+**Features:** `emulator.js`, `autocomplete.js`, `compilation.js`, `github.js`  
+**Libraries:** `libpebble/`, `noVNC/`
 
 ### Bower Dependencies
 
-```javascript
-// .bowerrc + manage.py bower install
-BOWER_INSTALLED_APPS = [
-    'jquery#~2.1.3',
-    'underscore',
-    'backbone',
-    'codemirror#4.2.0',
-    'bluebird#3.3.4',        // Promises
-    'text-encoding',          // TextEncoder/Decoder polyfill
-    'jshint/jshint',         // JavaScript linting
-    'html.sortable#~0.3.1',  // Drag-drop sorting
-    'jquery-textext',         // Tag input widget
-    'kanaka/noVNC#v0.5',     // VNC client
-    'Fuse',                   // Fuzzy search
-]
-```
+- jQuery 2.1, Underscore, Backbone
+- CodeMirror 4.2
+- noVNC 0.5 (VNC client)
+- Bluebird (Promises)
+- JSHint
 
 ---
 
@@ -770,244 +598,62 @@ BOWER_INSTALLED_APPS = [
 
 ```
 /sdk3/
-├── pebble/
-│   ├── waf              # Build tool (Python)
-│   └── common/          # Build helpers
-├── include/
-│   ├── pebble.h         # Main API header
-│   └── pebble_fonts.h   # Font definitions
-├── lib/
-│   ├── aplite/          # Platform libraries
-│   ├── basalt/
-│   ├── chalk/
-│   └── diorite/
-└── node_modules/        # JS build dependencies
+├── pebble/waf         # Build tool
+├── include/           # Pebble API headers
+└── lib/<platform>/    # Prebuilt libraries
 ```
 
-### Build Command
-
-```bash
-# SDK 3/4
-export PATH="/arm-cs-tools/bin:$PATH"
-export NODE_PATH="/sdk3/node_modules"
-/sdk3/pebble/waf configure build
-```
-
-### Output Structure
+### Output
 
 ```
 build/
-├── aplite/
-│   ├── pebble-app.bin      # App binary
+├── <platform>/
+│   ├── pebble-app.bin
 │   ├── pebble-app.elf      # Debug symbols
-│   ├── pebble-worker.bin   # Background worker (optional)
-│   └── app_resources.pbpack # Resources
-├── basalt/
-│   └── ...
-└── <project>.pbw           # Final package (ZIP)
+│   └── app_resources.pbpack
+└── <project>.pbw           # Final package
 ```
 
 ---
 
 ## Data Flows
 
-### Complete Build Flow
+### Build Flow
 
 ```
-┌────────────┐      ┌────────────┐      ┌────────────┐      ┌────────────┐
-│  Browser   │      │    Web     │      │   Celery   │      │     S3     │
-└─────┬──────┘      └─────┬──────┘      └─────┬──────┘      └─────┬──────┘
-      │                   │                   │                   │
-      │ POST /build/run   │                   │                   │
-      │──────────────────>│                   │                   │
-      │                   │                   │                   │
-      │                   │ Create BuildResult│                   │
-      │                   │ (state=WAITING)   │                   │
-      │                   │                   │                   │
-      │                   │ Queue task        │                   │
-      │                   │──────────────────>│                   │
-      │                   │                   │                   │
-      │ {build_id, task_id}                   │                   │
-      │<──────────────────│                   │                   │
-      │                   │                   │                   │
-      │                   │                   │ Fetch project     │
-      │                   │                   │──────────────────>│
-      │                   │                   │<──────────────────│
-      │                   │                   │                   │
-      │                   │                   │ Create temp dir   │
-      │                   │                   │ Write source files│
-      │                   │                   │ npm install       │
-      │                   │                   │ waf configure build
-      │                   │                   │                   │
-      │                   │                   │ Upload .pbw       │
-      │                   │                   │──────────────────>│
-      │                   │                   │                   │
-      │                   │                   │ Update BuildResult│
-      │                   │                   │ (state=SUCCEEDED) │
-      │                   │                   │                   │
-      │ Poll GET /build/last                  │                   │
-      │──────────────────>│                   │                   │
-      │                   │                   │                   │
-      │ {state, download_url, sizes}          │                   │
-      │<──────────────────│                   │                   │
+Browser → POST /build/run → Web
+Web → Create BuildResult → Queue Celery task
+Celery → Fetch files from S3
+       → npm install
+       → waf build
+       → Upload .pbw to S3
+       → Update BuildResult
+Browser → Poll /build/last → Get result
 ```
 
-### Emulator Session
+### Emulator Flow
 
 ```
-┌────────────┐      ┌────────────┐      ┌────────────┐
-│  Browser   │      │    Web     │      │    QEMU    │
-└─────┬──────┘      └─────┬──────┘      └─────┬──────┘
-      │                   │                   │
-      │ POST /emulator/launch                 │
-      │──────────────────────────────────────>│
-      │                   │                   │
-      │                   │    Spawn QEMU     │
-      │                   │    Spawn pypkjs   │
-      │                   │                   │
-      │ {uuid, vnc_ws_port, ws_port}          │
-      │<──────────────────────────────────────│
-      │                   │                   │
-      │ WebSocket /ws/vnc │                   │
-      │═══════════════════════════════════════│
-      │      VNC frames   │                   │
-      │<══════════════════════════════════════│
-      │                   │                   │
-      │ WebSocket /ws/phone                   │
-      │═══════════════════════════════════════│
-      │   Install .pbw    │                   │
-      │══════════════════════════════════════>│
-      │                   │                   │
-      │  Periodic ping    │                   │
-      │──────────────────────────────────────>│
-      │                   │                   │
-```
-
-### Code Completion
-
-```
-┌────────────┐      ┌────────────┐      ┌────────────┐
-│  Browser   │      │    Web     │      │    YCMD    │
-└─────┬──────┘      └─────┬──────┘      └─────┬──────┘
-      │                   │                   │
-      │ POST /autocomplete/init               │
-      │──────────────────────────────────────>│
-      │                   │                   │
-      │                   │ Create temp dir   │
-      │                   │ Write files       │
-      │                   │ Spawn ycmd x4     │
-      │                   │                   │
-      │ {uuid, ws_port}   │                   │
-      │<──────────────────────────────────────│
-      │                   │                   │
-      │ WebSocket /ycm/<uuid>/ws              │
-      │═══════════════════════════════════════│
-      │                   │                   │
-      │ {cmd: "completions", data: {          │
-      │   file: "src/main.c",                 │
-      │   line: 42, column: 15,               │
-      │   contents: "..."                     │
-      │ }}                                    │
-      │══════════════════════════════════════>│
-      │                   │                   │
-      │ {data: [{                             │
-      │   kind: "FUNCTION",                   │
-      │   insertion_text: "window_create",    │
-      │   extra_menu_info: "Window *"         │
-      │ }]}                                   │
-      │<══════════════════════════════════════│
+Browser → POST /emulator/launch → QEMU Controller
+QEMU Controller → Spawn QEMU + pypkjs → Return ports
+Browser → WebSocket /ws/vnc → VNC display
+Browser → WebSocket /ws/phone → App install
 ```
 
 ---
 
-## Getting Started
+## 2026 Updates
 
-### Prerequisites
+Key changes from the original CloudPebble:
 
-- Docker Engine 19.03+
-- Docker Compose 1.25+
-- Git with submodule support
-- 4GB+ RAM (QEMU + ycmd are memory-hungry)
-
-### Installation
-
-```bash
-# 1. Clone with submodules
-git clone --recursive https://github.com/pebble/cloudpebble-composed.git
-cd cloudpebble-composed
-
-# 2. Get your machine's LAN IP
-# macOS:
-ipconfig getifaddr en0
-# Linux:
-hostname -I | awk '{print $1}'
-
-# 3. Update docker-compose.yml
-# Replace all instances of 192.168.76.5 with your IP
-sed -i '' 's/192.168.76.5/YOUR_IP/g' docker-compose.yml
-
-# 4. Build and initialize
-./dev_setup.sh
-
-# 5. Start all services
-docker-compose up
-
-# 6. Create an account
-open http://YOUR_IP/accounts/register/
-```
-
-### Development Workflow
-
-```bash
-# View logs
-docker-compose logs -f web
-docker-compose logs -f celery
-docker-compose logs -f qemu
-
-# Restart single service
-docker-compose restart web
-
-# Rebuild after code changes
-docker-compose build web
-docker-compose up -d web
-
-# Access Django shell
-docker-compose exec web python manage.py shell
-
-# Run database migrations
-docker-compose exec web python manage.py migrate
-```
-
----
-
-## Configuration Reference
-
-### docker-compose.yml
-
-```yaml
-web:
-  build: cloudpebble/
-  ports:
-    - "80:80"
-  volumes:
-    - "./cloudpebble/:/code"  # Live reload in dev
-  links:
-    - redis
-    - postgres
-    - s3
-    - qemu
-    - ycmd
-  environment:
-    - DEBUG=yes
-    - RUN_WEB=yes
-    - AWS_ENABLED=yes
-    - PORT=80
-    - AWS_S3_FAKE_S3=192.168.76.5:8003
-    - MEDIA_URL=http://192.168.76.5:8003/builds.cloudpebble.net/
-    - QEMU_URLS=http://192.168.76.5:8001/
-    - YCM_URLS=http://192.168.76.5:8002/
-    - PUBLIC_URL=http://192.168.76.5/
-```
+| Change | Details |
+|--------|---------|
+| **Debian EOL fixes** | All Dockerfiles use `archive.debian.org` |
+| **Node.js updates** | Upgraded to Node 16.x, skip dead GPG keyservers |
+| **Docker Compose v2** | Modern compose file format |
+| **HTTPS support** | `EXPECT_SSL` env var, nginx for WebSocket proxying |
+| **SSL verification** | Disabled for internal requests (self-signed/proxy setups) |
+| **nginx reverse proxy** | Added for proper WebSocket and S3 routing |
 
 ---
 
@@ -1016,11 +662,9 @@ web:
 | Limitation | Reason | Workaround |
 |------------|--------|------------|
 | No Pebble SSO | Pebble's auth servers are gone | Use local accounts |
-| No phone installs | Requires SSO token for WebSocket proxy | Use emulator only |
-| Fixed IP address | Containers reference external IP | Edit docker-compose.yml |
-| Python 2.7 | Original codebase requirement | None (modernization needed) |
-| SDK 2 disabled | Broken in current setup | Use SDK 4 only |
-| No HTTPS | Local dev setup | Add nginx reverse proxy |
+| No phone installs | Requires SSO token | Use emulator only |
+| No timeline sync | Pebble servers are down | N/A |
+| Python 2.7 | Original codebase | Modernization needed |
 
 ---
 
@@ -1032,351 +676,50 @@ web:
 |-----------|-----------------|--------|------------|
 | Python | 2.7 | EOL Jan 2020 | 🔴 Critical |
 | Django | 1.6 | EOL Oct 2015 | 🔴 Critical |
-| Node.js | 10.15 (container) / 6.11 (package.json) | EOL Apr 2021 | 🔴 Critical |
+| Node.js | 16.x | EOL Sep 2023 | 🟡 High |
 | Celery | 3.1 | EOL 2019 | 🟡 High |
-| PostgreSQL | Latest (image) | ✅ OK | 🟢 Low |
-| Redis | Latest (image) | ✅ OK | 🟢 Low |
+| PostgreSQL | Latest | ✅ OK | 🟢 Low |
+| Redis | Latest | ✅ OK | 🟢 Low |
 | jQuery | 2.1 | Old but functional | 🟡 Medium |
-| Backbone | ~1.x | Outdated pattern | 🟡 Medium |
 | CodeMirror | 4.2 | Very old (current: 6.x) | 🟡 Medium |
-| ycmd | 2018 snapshot | Outdated | 🟡 Medium |
-| QEMU | Pebble fork | Works, no updates needed | 🟢 Low |
-| fake-s3 | Unmaintained | Works | 🟡 Medium |
 
-### Recommended Approach: Incremental Modernization
+### Recommended Approach: Phased Modernization
 
-Given the goal of simple Hetzner hosting, I recommend a phased approach:
+#### Phase 1: Infrastructure (1-2 weeks)
 
----
+1. **Python 2 → Python 3.11**
+   - Use `2to3` for automatic conversion
+   - Update requirements.txt
 
-### Phase 1: Infrastructure Modernization (1-2 weeks)
+2. **Django 1.6 → Django 4.2 LTS**
+   - Update URL patterns, middleware, settings
+   - Migrate South → Django migrations
 
-**Goal:** Get to supportable, modern infrastructure without rewriting application code.
+3. **Replace fake-s3 with MinIO**
+   - Actively maintained, production-ready
 
-#### 1.1 Python 2 → Python 3.11
+4. **Update Celery 3.1 → 5.3**
 
-```dockerfile
-# New base image
-FROM python:3.11-slim-bookworm
+#### Phase 2: Production Setup (2-3 days)
 
-# Key changes needed:
-# - print statements → print()
-# - dict.iteritems() → dict.items()
-# - unicode handling (mostly automatic)
-# - Update all pip packages
-```
+Single Hetzner server setup with:
+- Traefik for HTTPS/Let's Encrypt
+- Docker Compose with resource limits
+- **Recommended:** CX31 (4 vCPU, 8GB RAM) - €8.98/month
 
-**Estimated effort:** 2-3 days
-- Use `2to3` tool for automatic conversion
-- Run test suite (if exists) or manual testing
-- Update requirements.txt with compatible versions
+#### Phase 3: Frontend (Optional, 2-4 weeks)
 
-#### 1.2 Django 1.6 → Django 4.2 LTS
-
-```python
-# Major changes:
-# - URL patterns: url() → path() / re_path()
-# - MIDDLEWARE_CLASSES → MIDDLEWARE
-# - render_to_response → render
-# - South migrations → Django native migrations
-# - Template context processors syntax
-```
-
-**Estimated effort:** 3-5 days
-- Update settings.py structure
-- Migrate South migrations to Django migrations
-- Fix deprecated template tags
-- Update authentication backends
-
-#### 1.3 Replace fake-s3 with MinIO
-
-```yaml
-# docker-compose.yml
-s3:
-  image: minio/minio:latest
-  command: server /data --console-address ":9001"
-  ports:
-    - "8003:9000"
-    - "9001:9001"
-  environment:
-    - MINIO_ROOT_USER=cloudpebble
-    - MINIO_ROOT_PASSWORD=cloudpebble123
-  volumes:
-    - minio_data:/data
-```
-
-**Benefits:**
-- Actively maintained
-- S3-compatible API
-- Web console for debugging
-- Production-ready
-
-#### 1.4 Update Celery 3.1 → Celery 5.3
-
-```python
-# Key changes:
-# - celery.task → celery.shared_task
-# - CELERY_* settings → lowercase
-# - Task base class changes
-```
-
-**Estimated effort:** 1 day
-
----
-
-### Phase 2: Single-Server Docker Setup (2-3 days)
-
-**Goal:** Optimized docker-compose for Hetzner deployment.
-
-```yaml
-# docker-compose.prod.yml
-version: '3.8'
-
-services:
-  traefik:
-    image: traefik:v2.10
-    command:
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_certs:/letsencrypt
-
-  web:
-    build:
-      context: ./cloudpebble
-      dockerfile: Dockerfile.prod
-    environment:
-      - DEBUG=no
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgres://cloudpebble:${DB_PASSWORD}@postgres/cloudpebble
-      - REDIS_URL=redis://redis:6379
-    labels:
-      - "traefik.http.routers.web.rule=Host(`cloudpebble.example.com`)"
-      - "traefik.http.routers.web.tls.certresolver=le"
-    depends_on:
-      - postgres
-      - redis
-      - minio
-
-  celery:
-    build:
-      context: ./cloudpebble
-      dockerfile: Dockerfile.prod
-    command: celery -A cloudpebble worker -l info
-    environment:
-      - DATABASE_URL=postgres://cloudpebble:${DB_PASSWORD}@postgres/cloudpebble
-      - REDIS_URL=redis://redis:6379
-
-  qemu:
-    build: ./cloudpebble-qemu-controller
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-    labels:
-      - "traefik.http.routers.qemu.rule=Host(`cloudpebble.example.com`) && PathPrefix(`/qemu`)"
-
-  ycmd:
-    build: ./cloudpebble-ycmd-proxy
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=cloudpebble
-      - POSTGRES_USER=cloudpebble
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis_data:/data
-
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      - MINIO_ROOT_USER=${MINIO_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
-    volumes:
-      - minio_data:/data
-
-volumes:
-  postgres_data:
-  redis_data:
-  minio_data:
-  traefik_certs:
-```
-
-**Hetzner Recommendation:**
-- **CX31** (4 vCPU, 8GB RAM, 80GB SSD) - €8.98/month
-- Sufficient for 5-10 concurrent users
-- Scale to CX41 if needed
-
----
-
-### Phase 3: Frontend Modernization (Optional, 2-4 weeks)
-
-Three options based on effort/reward:
-
-#### Option A: Minimal - Update CodeMirror Only
-
-**Effort:** 3-5 days  
-**Impact:** Better editor experience
-
-```javascript
-// Replace CodeMirror 4 with CodeMirror 6
-import {EditorView, basicSetup} from "codemirror"
-import {cpp} from "@codemirror/lang-cpp"
-import {javascript} from "@codemirror/lang-javascript"
-
-// Benefits:
-// - Modern architecture
-// - Better mobile support
-// - LSP integration possible
-```
-
-#### Option B: Moderate - Replace Backbone with Alpine.js
-
-**Effort:** 1-2 weeks  
-**Impact:** Simpler, more maintainable frontend
-
-```html
-<!-- Before (Backbone) -->
-<script>
-var ProjectView = Backbone.View.extend({...});
-</script>
-
-<!-- After (Alpine.js) -->
-<div x-data="projectManager()">
-  <template x-for="file in files">
-    <div @click="openFile(file)" x-text="file.name"></div>
-  </template>
-</div>
-```
-
-**Why Alpine.js:**
-- Minimal learning curve
-- Works with existing server-rendered HTML
-- No build step required
-- 15KB vs 80KB+ for React/Vue
-
-#### Option C: Full Rewrite - Svelte/SvelteKit
-
-**Effort:** 4-6 weeks  
-**Impact:** Modern SPA, best UX
-
-```svelte
-<!-- src/routes/project/[id]/+page.svelte -->
-<script>
-  import { page } from '$app/stores';
-  import CodeMirror from '$lib/CodeMirror.svelte';
-  import Emulator from '$lib/Emulator.svelte';
-  
-  export let data; // from +page.server.js
-</script>
-
-<div class="ide-layout">
-  <Sidebar files={data.files} />
-  <CodeMirror bind:value={currentFile.content} />
-  <Emulator platform={data.platform} />
-</div>
-```
-
-**Why Svelte:**
-- Smallest bundle size
-- No virtual DOM overhead
-- Great DX with SvelteKit
-- Easy WebSocket integration
-
----
-
-### Phase 4: YCMD Replacement (Optional, 1 week)
-
-Replace ycmd with clangd (modern C/C++ language server):
-
-```yaml
-# New service
-lsp:
-  image: silkeh/clang:15
-  command: clangd --background-index
-  volumes:
-    - sdk:/sdk:ro
-```
-
-**Benefits:**
-- Actively maintained
-- Better completion
-- Faster
-- Standard LSP protocol
-
-**Frontend integration:**
-```javascript
-// Use monaco-editor with LSP
-import * as monaco from 'monaco-editor';
-import { MonacoLanguageClient } from 'monaco-languageclient';
-
-const client = new MonacoLanguageClient({
-  serverUri: 'ws://localhost:8002/lsp'
-});
-```
-
----
-
-### Recommended Implementation Order
-
-For a single Hetzner server with minimal maintenance:
-
-| Phase | Priority | Effort | Impact |
-|-------|----------|--------|--------|
-| 1.1 Python 3 | 🔴 Must | 2-3 days | Security |
-| 1.2 Django 4 | 🔴 Must | 3-5 days | Security |
-| 1.3 MinIO | 🟡 Should | 1 day | Reliability |
-| 1.4 Celery 5 | 🟡 Should | 1 day | Maintenance |
-| 2 Docker Prod | 🔴 Must | 2-3 days | Deployment |
-| 3A CodeMirror | 🟢 Nice | 3-5 days | UX |
-| 3B Alpine.js | 🟢 Nice | 1-2 weeks | Maintenance |
-| 4 clangd | 🟢 Nice | 1 week | Performance |
-
----
+**Option A:** Update CodeMirror only (3-5 days)  
+**Option B:** Replace Backbone with Alpine.js (1-2 weeks)  
+**Option C:** Full rewrite with Svelte (4-6 weeks)
 
 ### Questions for Feedback
 
-1. **Python/Django upgrade** - Should we attempt an in-place upgrade or start fresh with the same data models?
-
-2. **Frontend strategy** - 
-   - (A) Minimal: Just update CodeMirror, keep jQuery/Backbone
-   - (B) Moderate: Replace Backbone with Alpine.js
-   - (C) Full rewrite: Svelte or React
-
-3. **Authentication** - 
-   - Keep local accounts only?
-   - Add OAuth (GitHub, Google)?
-   - Add Rebble SSO (if they have an endpoint)?
-
-4. **Emulator strategy** -
-   - Keep QEMU/pypkjs as-is (it works)?
-   - Explore WebAssembly Pebble emulator (future)?
-
-5. **Hosting architecture** -
-   - Single Hetzner server (simple, cheap)?
-   - Split (web on Hetzner, builds on separate worker)?
-   - Add CDN for static assets?
-
-6. **Database** -
-   - Migrate existing data?
-   - Start fresh?
+1. **Python/Django upgrade** - In-place or fresh start?
+2. **Frontend strategy** - Minimal, moderate, or full rewrite?
+3. **Authentication** - Local only, or add OAuth (GitHub/Google)?
+4. **Emulator** - Keep QEMU as-is, or explore WebAssembly?
+5. **Hosting** - Single server, or split web/workers?
 
 ---
 
@@ -1385,47 +728,13 @@ For a single Hetzner server with minimal maintenance:
 ```
 cloudpebble-composed/
 ├── docker-compose.yml          # Development orchestration
-├── docker-compose.prod.yml     # Production setup (to create)
-├── dev_setup.sh               # Initial build script
-├── README.md                  # This file
-│
-├── cloudpebble/               # Main Django app (git submodule)
-│   ├── Dockerfile
-│   ├── docker_start.sh
-│   ├── requirements.txt
-│   ├── manage.py
-│   ├── cloudpebble/           # Django project
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── wsgi.py
-│   ├── ide/                   # Core IDE app
-│   │   ├── api/              # REST endpoints
-│   │   ├── models/           # Database models
-│   │   ├── tasks/            # Celery tasks
-│   │   ├── views/            # HTML views
-│   │   ├── static/ide/       # JS/CSS (57 JS, 8 CSS)
-│   │   ├── templates/        # Django templates
-│   │   ├── utils/            # Helpers
-│   │   └── migrations/       # 51 South migrations
-│   ├── auth/                  # Authentication
-│   ├── root/                  # Landing page
-│   └── qr/                    # QR codes
-│
-├── cloudpebble-qemu-controller/  # Emulator service (git submodule)
-│   ├── Dockerfile
-│   ├── controller.py          # Flask API
-│   ├── emulator.py           # QEMU/pypkjs management
-│   ├── settings.py
-│   └── qemu-tintin-images/   # Firmware
-│
-└── cloudpebble-ycmd-proxy/      # Code completion (git submodule)
-    ├── Dockerfile
-    ├── proxy.py               # Flask API
-    ├── ycm.py                # ycmd interface
-    ├── ycm_helpers.py        # Session management
-    ├── filesync.py           # File synchronization
-    ├── projectinfo.py        # Header generation
-    └── ycm_conf/             # Compiler flag templates
+├── nginx/                      # Reverse proxy config
+├── cloudpebble/                # Main Django app (submodule)
+│   ├── ide/                    # Core IDE
+│   ├── auth/                   # Authentication
+│   └── ...
+├── cloudpebble-qemu-controller/  # Emulator service (submodule)
+└── cloudpebble-ycmd-proxy/       # Code completion (submodule)
 ```
 
 ---
@@ -1434,14 +743,11 @@ cloudpebble-composed/
 
 - Original CloudPebble by [Pebble Technology](https://github.com/pebble) / Katharine Berry
 - Community revival at [Rebble](https://rebble.io)
+- 2026 updates by Eric Migicovsky
 - Docker compose setup by [iSevenDays](https://github.com/iSevenDays/cloudpebble-composed)
-- Inspired by [Reddit guide](https://www.reddit.com/r/pebble/comments/bza6yq/)
 
 ---
 
 ## License
 
-See individual submodule licenses:
-- cloudpebble: MIT
-- cloudpebble-qemu-controller: MIT
-- cloudpebble-ycmd-proxy: MIT
+See individual submodule licenses (MIT).

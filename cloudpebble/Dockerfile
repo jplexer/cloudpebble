@@ -1,39 +1,33 @@
-FROM python:2.7.11
-MAINTAINER Katharine Berry <katharine@pebble.com>
+FROM python:3.11-slim-bookworm
+LABEL maintainer="CloudPebble Contributors"
 
-ENV NPM_CONFIG_LOGLEVEL=info NODE_VERSION=10.15.3 DJANGO_VERSION=1.6 NODEJS_CHECK_SIGNATURES=no
+ENV NPM_CONFIG_LOGLEVEL=info NODE_VERSION=20.11.0 DJANGO_VERSION=4.2 NODEJS_CHECK_SIGNATURES=no
 
-#    C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8 \
 # Node stuff.
+RUN apt-get update && apt-get install -y curl && \
+  curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" && \
+  curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" && \
+  grep " node-v$NODE_VERSION-linux-x64.tar.gz\$" SHASUMS256.txt.asc | sha256sum -c - && \
+  tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 && \
+  rm "node-v$NODE_VERSION-linux-x64.tar.gz" SHASUMS256.txt.asc
 
-# gpg keys listed at https://github.com/nodejs/node
-
-
-RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
-  && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
-#  && gpg --verify SHASUMS256.txt.asc \
-  && grep " node-v$NODE_VERSION-linux-x64.tar.gz\$" SHASUMS256.txt.asc | sha256sum -c - \
-  && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
-  && rm "node-v$NODE_VERSION-linux-x64.tar.gz" SHASUMS256.txt.asc
-
-RUN npm install -g npm jshint
+RUN npm install -g jshint@2.13.6
 
 # Django stuff
-
-# Fix broken sources.list (jessie repositories have been archived)
-RUN printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /etc/apt/sources.list
-
 RUN apt-get update && apt-get install -y \
     gettext \
     postgresql-client libpq-dev \
+    gcc \
+    make \
+    bzip2 \
+    git \
+    libc6-dev \
   --no-install-recommends && rm -rf /var/lib/apt/lists/*
-
-RUN pip install psycopg2 django=="$DJANGO_VERSION"
 
 EXPOSE 8000
 
 # CloudPebble stuff
-RUN npm install -g bower && echo '{"allow_root": true}' > ~/.bowerrc
+RUN npm install -g bower@1.8.14 && echo '{"allow_root": true}' > ~/.bowerrc
 
 # Grab the toolchain
 RUN curl -o /tmp/arm-cs-tools.tar https://cloudpebble-vagrant.s3.amazonaws.com/arm-cs-tools-stripped.tar && \
@@ -41,13 +35,6 @@ RUN curl -o /tmp/arm-cs-tools.tar https://cloudpebble-vagrant.s3.amazonaws.com/a
 
 ADD requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
-
-# ENV SDK_TWO_VERSION=2.9
-
-# Install SDK 2
-#RUN mkdir /sdk2 && \
-#  curl -L "https://s3.amazonaws.com/assets.getpebble.com/sdk3/sdk-core/sdk-core-${SDK_TWO_VERSION}.tar.bz2" | \
-#  tar --strip-components=1 -xj -C /sdk2
 
 ENV SDK_THREE_CHANNEL=beta
 ENV SDK_THREE_VERSION=4.3
@@ -64,8 +51,20 @@ ENV WAF_NODE_PATH=/sdk3/node_modules
 COPY . /code
 WORKDIR /code
 
-# Bower is awful.
-RUN rm -rf bower_components && cd /tmp && python /code/manage.py bower install && mv bower_components /code/
+# Bower is awful. Run bower directly instead of Django management command
+RUN rm -rf bower_components && \
+  bower install --allow-root \
+    "https://github.com/krisk/Fuse.git#2ec2f2c40059e135cabf2b01c8c3f96f808b8809" \
+    "jquery#~2.1.3" \
+    "underscore" \
+    "backbone" \
+    "text-encoding" \
+    "jshint/jshint" \
+    "html.sortable#~0.3.1" \
+    "alexgorbatchev/jquery-textext" \
+    "codemirror#4.2.0" \
+    "bluebird#3.3.4" \
+    "kanaka/noVNC#v0.5"
 
 RUN python manage.py compilemessages
 

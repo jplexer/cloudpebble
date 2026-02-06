@@ -8,7 +8,7 @@ def index(request):
     next_url = request.GET.get('next', '/ide/')
     if not next_url.startswith('/'):
         next_url = '/ide/'
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         return redirect(next_url)
     else:
         return render(request, 'root/index.html', {

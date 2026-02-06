@@ -145,7 +145,7 @@ class YCM(object):
                     'X-Ycm-Hmac': self._hmac(''),
                 }
                 result = requests.get("http://localhost:%d/ready" % self._port, headers=headers)
-                print result
+                print(result)
             except requests.exceptions.ConnectionError:
                 pass
             else:
@@ -171,11 +171,11 @@ class YCM(object):
         return time.time() < self._last_ping + 280
 
     def close(self):
-        print "terminating server"
+        print("terminating server")
         try:
             self._process.terminate()
         except Exception as e:
-            print "Error terminating process: %s" % e
+            print("Error terminating process: %s") % e
         try:
             shutil.rmtree(self.files.root_dir)
         except:

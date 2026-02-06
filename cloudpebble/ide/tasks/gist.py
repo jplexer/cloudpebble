@@ -1,7 +1,7 @@
 import json
 
 import github
-from celery import task
+from celery import shared_task
 from django.db import transaction
 from django.conf import settings
 
@@ -13,10 +13,11 @@ from ide.utils.project import APPINFO_MANIFEST, PACKAGE_MANIFEST
 from ide.utils import generate_half_uuid
 from utils.td_helper import send_td_event
 from collections import defaultdict
-import urllib2
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 
 
-@task(acks_late=True)
+@shared_task(acks_late=True)
 def import_gist(user_id, gist_id):
     user = User.objects.get(pk=user_id)
     g = github.Github()
@@ -89,7 +90,7 @@ def import_gist(user_id, gist_id):
 
     project_settings = {}
     project_settings.update(default_settings)
-    project_settings.update({k: v for k, v in manifest_settings.iteritems() if v is not None})
+    project_settings.update({k: v for k, v in manifest_settings.items() if v is not None})
     project_settings.update(fixed_settings)
 
     with transaction.atomic():
@@ -137,7 +138,7 @@ def import_gist(user_id, gist_id):
                     # We already have this as a unicode string in .content, but it shouldn't have become unicode
                     # in the first place.
                     default_variant = ResourceVariant.objects.create(resource_file=resources[filename], tags=ResourceVariant.TAGS_DEFAULT)
-                    default_variant.save_file(urllib2.urlopen(gist.files[filename].raw_url))
+                    default_variant.save_file(urlopen(gist.files[filename].raw_url))
                 ResourceIdentifier.objects.create(
                     resource_file=resources[filename],
                     resource_id=def_name,

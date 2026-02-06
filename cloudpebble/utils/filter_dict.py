@@ -55,7 +55,7 @@ def _filter_dict(dictionary, spec, strict=False):
             _transform_value(out, key, dictionary, spec_value, strict=False)
     else:
         # Non-wildcard case
-        for key, spec_value in spec.iteritems():
+        for key, spec_value in spec.items():
             if key in dictionary:
                 _transform_value(out, key, dictionary, spec_value, strict=True)
     return out
@@ -74,7 +74,7 @@ def _transform_value(out, key, dictionary, spec_value, strict):
         out[result[0]] = result[1]
     elif isinstance(spec_value, collections.Mapping):
         out[key] = _filter_dict(v, spec_value, strict=strict)
-    elif isinstance(spec_value, basestring):
+    elif isinstance(spec_value, str):
         out[spec_value] = v
     else:
         raise ValueError('Invalid filter spec value')

@@ -12,7 +12,6 @@ DEBUG = _environ.get('DEBUG', '') != ''
 VERBOSE = DEBUG or (_environ.get('VERBOSE', '') != '')
 TESTING = 'test' in sys.argv
 TRAVIS = 'TRAVIS' in _environ and os.environ["TRAVIS"] == "true"
-TEMPLATE_DEBUG = DEBUG
 
 ADMINS = (
     ('Administrator', 'example@example.com'),
@@ -60,14 +59,14 @@ LANGUAGE_COOKIE_NAME = 'cloudpebble_language'
 
 TEMPLATE_CONTEXT_PROCESSORS = (
     "django.contrib.auth.context_processors.auth",
-    "django.core.context_processors.debug",
-    "django.core.context_processors.i18n",
-    "django.core.context_processors.media",
-    "django.core.context_processors.static",
-    "django.core.context_processors.tz",
+    "django.template.context_processors.debug",
+    "django.template.context_processors.i18n",
+    "django.template.context_processors.media",
+    "django.template.context_processors.static",
+    "django.template.context_processors.tz",
     "django.contrib.messages.context_processors.messages",
-    "social.apps.django_app.context_processors.backends",
-    "social.apps.django_app.context_processors.login_redirect",
+    "social_django.context_processors.backends",
+    "social_django.context_processors.login_redirect",
 )
 
 # Hosts/domain names that are valid for this site; required if DEBUG is False
@@ -177,7 +176,7 @@ if not DEBUG:
     STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.CachedStaticFilesStorage'
 
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -194,16 +193,16 @@ AUTHENTICATION_BACKENDS = (
 )
 
 SOCIAL_AUTH_PIPELINE = (
-    'social.pipeline.social_auth.social_details',
-    'social.pipeline.social_auth.social_uid',
-    'social.pipeline.social_auth.auth_allowed',
-    'auth.pebble.merge_user', # formerly social.pipeline.social_auth.social_user
-    'social.pipeline.user.get_username',
-    'social.pipeline.user.create_user',
-    'social.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'auth.pebble.merge_user', # formerly social_core.pipeline.social_auth.social_user
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',
     'auth.pebble.clear_old_login',
-    'social.pipeline.social_auth.load_extra_data',
-    'social.pipeline.user.user_details'
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details'
 )
 
 SOCIAL_AUTH_PEBBLE_KEY = _environ.get('PEBBLE_AUTH_KEY', 'bab3e760ede6e592517682837a054beff83c8a80725d8e13fa122e8e87e99c20')
@@ -225,6 +224,33 @@ ROOT_URLCONF = 'cloudpebble.urls'
 # Python dotted path to the WSGI application used by Django's runserver.
 WSGI_APPLICATION = 'cloudpebble.wsgi.application'
 
+# Templates configuration (Django 1.8+)
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.i18n',
+                'django.template.context_processors.media',
+                'django.template.context_processors.static',
+                'django.template.context_processors.tz',
+                'social_django.context_processors.backends',
+                'social_django.context_processors.login_redirect',
+            ],
+        },
+    },
+]
+
+# Default auto field (Django 3.2+)
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
     # Always use forward slashes, even on Windows.
@@ -242,13 +268,13 @@ INSTALLED_APPS = (
     #'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
-    'social.apps.django_app.default',
+    'social_django',
     'ide',
-    'auth',
+    'auth.apps.CloudPebbleAuthConfig',
     'root',
     'qr',
-    'south',
-    'djcelery',
+    # 'south',  # Removed for Django 4.2
+    # 'djcelery',  # Removed for Django 4.2
     'registration',
     'djangobower',
 )
@@ -371,14 +397,14 @@ PHONE_SHORTURL = _environ.get('PHONE_SHORTURL', 'cpbl.io')
 
 WAF_NODE_PATH = _environ.get('WAF_NODE_PATH', None)
 
-import djcelery
-djcelery.setup_loader()
+# import djcelery  # Removed for Django 4.2
+# djcelery.setup_loader()  # Removed for Django 4.2
 
 # import local settings
 try:
     from settings_local import *
 except ImportError:
-    print "No local settings overrides."
+    print("No local settings overrides.")
     pass
 
 socket.setdefaulttimeout(int(_environ.get("DEFAULT_SOCKET_TIMEOUT", 10)))

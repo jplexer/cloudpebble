@@ -4,7 +4,7 @@ import json
 
 from django.contrib.auth.models import User
 from django.db import models, transaction
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 
 from ide.models.files import ResourceFile, ResourceIdentifier, SourceFile, ResourceVariant
@@ -18,7 +18,7 @@ __author__ = 'katharine'
 
 
 class Project(IdeModel):
-    owner = models.ForeignKey(User)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=50)
     last_modified = models.DateTimeField(auto_now_add=True)
 
@@ -91,7 +91,7 @@ class Project(IdeModel):
         """
         with transaction.atomic():
             Dependency.objects.filter(project=self).delete()
-            for name, version in dependencies.iteritems():
+            for name, version in dependencies.items():
                 dep = Dependency.objects.create(project=self, name=name, version=version)
                 dep.save()
 
@@ -144,7 +144,7 @@ class Project(IdeModel):
         """
         app_keys = json.loads(self.app_keys)
         if isinstance(app_keys, dict):
-            return sorted(app_keys.iteritems(), key=lambda x: x[1])
+            return sorted(app_keys.items(), key=lambda x: x[1])
         else:
             parsed_keys = []
             for appkey in app_keys:

@@ -37,7 +37,7 @@ def transition_delete(request):
 @json_view
 def whats_new(request):
     # Unauthenticated users never have anything new.
-    if not request.user.is_authenticated():
+    if not request.user.is_authenticated:
         return {'new': []}
 
     return {'new': get_new_things(request.user)}

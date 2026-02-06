@@ -4,7 +4,7 @@ from django.views.generic import View
 from django.shortcuts import render, redirect
 from django.http.response import Http404
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from ide.api import json_failure, json_response
 
 
