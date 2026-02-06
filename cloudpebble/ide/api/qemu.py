@@ -41,7 +41,7 @@ def launch_emulator(request):
     if qemu_instance is not None:
         qemu_instance = json.loads(qemu_instance)
         try:
-            response = requests.post(qemu_instance['ping_url'], timeout=2)
+            response = requests.post(qemu_instance["ping_url"], timeout=2, verify=False)
             response.raise_for_status()
             response = response.json()
         except (requests.RequestException, ValueError) as e:
@@ -65,7 +65,7 @@ def launch_emulator(request):
                                          'oauth': oauth,
                                          'tz_offset': tz_offset},
                                    headers={'Authorization': settings.QEMU_LAUNCH_AUTH_HEADER},
-                                   timeout=settings.QEMU_LAUNCH_TIMEOUT)
+                                   timeout=settings.QEMU_LAUNCH_TIMEOUT, verify=False)
             result.raise_for_status()
             response = result.json()
             url = urlparse.urlsplit(server)

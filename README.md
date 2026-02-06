@@ -1,38 +1,84 @@
-Cloudpebble Composed
-====================
+# CloudPebble Composed
 
-This repo contains the key components of CloudPebble as submodules. It also contains a
-`docker-compose` file that will assemble all of them into something that runs like a
-real CloudPebble instance.
+This repo contains the key components of CloudPebble as Docker containers with a
+`docker-compose` file that assembles them into a working CloudPebble instance.
 
-Getting Started
----------------
+**Updated February 2026** to work with modern Docker, fix EOL Debian repos, and support HTTPS deployments.
 
-1. Install [Docker Toolbox](https://www.docker.com/docker-toolbox) (Mac, Windows),
-   or otherwise get docker and docker-compose into a working state (Linux).
-2. Enter a shell with docker set up appropriately (e.g. via "Docker Quickstart Terminal")
-3. `git clone --recursive git@github.com:iSevenDays/cloudpebble-composed.git && cd cloudpebble-composed`
-4. Open docker-compose.yml and set your local IP address from Network -> Settings (IMPORTANT)
-5. `./dev_setup.sh` (this will take a while)
-6. `docker-compose up`
-7. Register a local account at http://your_ip_address/accounts/register/
-8. Login with local account at http://your_ip_address/accounts/login/ (you have to login when the docker restarts)
+## Quick Start (Local Development)
 
-At the end of this, you will have seven Docker containers running. The CloudPebble-specific ones
-should pick up most changes without being rebuilt, although in some cases you may have to stop and
-restart them (re-run `docker-compose up`).
+1. Install Docker and docker-compose
+2. Clone this repo:
+   ```bash
+   git clone https://github.com/ericmigi/cloudpebble.git
+   cd cloudpebble
+   ```
+3. Set your public URL:
+   ```bash
+   export PUBLIC_URL=http://localhost:8080
+   ```
+4. Build and run:
+   ```bash
+   docker compose build
+   docker compose up
+   ```
+5. Open http://localhost:8080 and register an account
 
-The current compose file assumes that the docker machine/VM is accessible at 192.168.99.100. This
-is true by default, but may not be true for you.
+## HTTPS Deployment (e.g. exe.dev, cloud VPS)
 
-Limitations
------------
+For HTTPS deployments behind a reverse proxy:
 
-- Pebble SSO is not available; only local accounts work.
-- Websocket installs are not available because pebble SSO is not available
-- You'll have to change things manually if 192.168.99.100 isn't right.
+```bash
+export PUBLIC_URL=https://your-domain.com
+export EXPECT_SSL=yes
+docker compose build
+docker compose up -d
+```
 
-Credits:
-A special thanks to https://www.reddit.com/r/pebble/comments/bza6yq/how_to_get_cloudpebble_working_on_a_local_computer/
+The nginx container listens on port 8080. Configure your reverse proxy to forward HTTPS traffic to it.
 
-If you want to try CloudPebble - you can check a free CloudPebble service http://dev.vsys.ml (it works as of September 26 2019)
+## Architecture
+
+The stack includes:
+
+| Container | Purpose |
+|-----------|---------|
+| nginx | Reverse proxy, websocket routing, S3 builds proxy |
+| web | Django CloudPebble web app |
+| celery | Background task worker (builds) |
+| qemu | Pebble emulator controller |
+| ycmd | Code completion server |
+| redis | Celery broker |
+| postgres | Database |
+| s3 | Fake S3 for build artifacts |
+
+## Key Changes from Original
+
+1. **Debian EOL fixes**: All Dockerfiles patched to use archive.debian.org
+2. **Node.js updates**: Upgraded to Node 16.x (cloudpebble), skipped dead GPG keyservers
+3. **Docker Compose v2**: Updated to modern compose file format
+4. **HTTPS support**: Added EXPECT_SSL env var, nginx for websocket proxying
+5. **SSL verification disabled**: Internal requests skip SSL verification (required for self-signed/proxy setups)
+
+## Limitations
+
+- Pebble SSO is not available; only local accounts work
+- Websocket installs require the emulator (phone pairing not available)
+- Timeline sync to Pebble servers will fail (servers are down)
+
+## Troubleshooting
+
+**Emulator won't start**: Check that QEMU_URLS points to your PUBLIC_URL
+
+**App install fails**: Verify /s3builds/ proxy is working:
+```bash
+curl -I ${PUBLIC_URL}/s3builds/test
+```
+
+**SSL errors**: Make sure EXPECT_SSL=yes for HTTPS deployments
+
+## Credits
+
+Based on the original [cloudpebble-composed](https://github.com/nicmcd/CloudPebble-Composed) work.
+
+Special thanks to the Rebble community for keeping Pebble alive! 🎉

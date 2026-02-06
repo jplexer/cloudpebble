@@ -1,6 +1,12 @@
 FROM python:2.7
 MAINTAINER Katharine Berry <katharine@pebble.com>
 
+# Fix for Debian Buster EOL - switch to archive repos
+RUN sed -i -e 's/deb.debian.org/archive.debian.org/g' \
+           -e 's/security.debian.org/archive.debian.org/g' \
+           -e '/buster-updates/d' \
+    /etc/apt/sources.list
+
 RUN apt-get update && apt-get install -y \
   libglib2.0-dev libpixman-1-dev libfdt-dev gnutls-dev
 
