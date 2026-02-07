@@ -8,7 +8,8 @@ class LineReader(object):
         self.elf = elf_path
 
     def _exec_tool(self):
-        return subprocess.check_output([ARM_CS_TOOLS + "arm-none-eabi-objdump", "--dwarf=decodedline", self.elf])
+        output = subprocess.check_output([ARM_CS_TOOLS + "arm-none-eabi-objdump", "--dwarf=decodedline", self.elf])
+        return output.decode('utf-8', errors='replace')
 
     def get_line_listing(self):
         decoded = self._exec_tool()
@@ -64,7 +65,8 @@ class FunctionReader(object):
         self.elf = elf_path
 
     def _exec_tool(self):
-        return subprocess.check_output([ARM_CS_TOOLS + "arm-none-eabi-objdump", "--dwarf=info", self.elf])
+        output = subprocess.check_output([ARM_CS_TOOLS + "arm-none-eabi-objdump", "--dwarf=info", self.elf])
+        return output.decode('utf-8', errors='replace')
 
     def _decode_info_fields(self, content):
         """

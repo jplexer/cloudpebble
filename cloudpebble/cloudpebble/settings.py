@@ -366,7 +366,8 @@ SDK3_PEBBLE_WAF = _environ.get('SDK3_PEBBLE_WAF', '/sdk3/pebble/waf')
 
 NPM_BINARY = _environ.get('NPM_BINARY', 'npm')
 
-ARM_CS_TOOLS = _environ.get('ARM_CS_TOOLS', '/arm-cs-tools/bin/')
+# Toolchain now comes from pebble-tool SDK, available in PATH
+ARM_CS_TOOLS = _environ.get('ARM_CS_TOOLS', '')
 
 TD_URL = _environ.get('TD_URL', None)
 TD_ENABLED = _environ.get('TD_ENABLED', False)
