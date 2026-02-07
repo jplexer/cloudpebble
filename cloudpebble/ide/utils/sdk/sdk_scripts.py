@@ -12,7 +12,7 @@ import os.path
 try:
     from sh import CommandNotFound, jshint, cat, ErrorReturnCode_2
     hint = jshint
-except (ImportError, CommandNotFound):
+except (ImportError, Exception):
     hint = None
 
 top = '.'
@@ -62,7 +62,7 @@ import os.path
 try:
     from sh import CommandNotFound, jshint, cat, ErrorReturnCode_2
     hint = jshint
-except (ImportError, CommandNotFound):
+except (ImportError, Exception):
     hint = None
 
 top = '.'
@@ -127,7 +127,7 @@ import waflib
 try:
     from sh import CommandNotFound, jshint, cat, ErrorReturnCode_2
     hint = jshint
-except (ImportError, CommandNotFound):
+except (ImportError, Exception):
     hint = None
 
 top = '.'
@@ -193,7 +193,7 @@ import os.path
 try:
     from sh import CommandNotFound, jshint, cat, ErrorReturnCode_2
     hint = jshint
-except (ImportError, CommandNotFound):
+except (ImportError, Exception):
     hint = None
 
 top = '.'
@@ -256,7 +256,7 @@ import os.path
 try:
     from sh import CommandNotFound, jshint, cat, ErrorReturnCode_2
     hint = jshint
-except (ImportError, CommandNotFound):
+except (ImportError, Exception):
     hint = None
 
 top = '.'

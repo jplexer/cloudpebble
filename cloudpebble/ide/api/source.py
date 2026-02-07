@@ -56,6 +56,9 @@ def load_source_file(request, project_id, file_id):
     source_file = get_object_or_404(SourceFile, pk=file_id, project=project)
 
     content = source_file.get_contents()
+    # Ensure content is a string for JSON serialization
+    if isinstance(content, bytes):
+        content = content.decode('utf-8')
 
     try:
         folded_lines = json.loads(source_file.folded_lines)

@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y curl && \
 
 RUN npm install -g jshint@2.13.6
 
-# Django stuff
+# Django stuff + emulator dependencies
 RUN apt-get update && apt-get install -y \
     gettext \
     postgresql-client libpq-dev \
@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y \
     bzip2 \
     git \
     libc6-dev \
+    libsdl1.2debian \
+    libfdt1 \
   --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8000
@@ -29,24 +31,26 @@ EXPOSE 8000
 # CloudPebble stuff
 RUN npm install -g bower@1.8.14 && echo '{"allow_root": true}' > ~/.bowerrc
 
-# Grab the toolchain
-RUN curl -o /tmp/arm-cs-tools.tar https://cloudpebble-vagrant.s3.amazonaws.com/arm-cs-tools-stripped.tar && \
-  tar -xf /tmp/arm-cs-tools.tar -C / && rm /tmp/arm-cs-tools.tar
+# Install uv for Python package management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Install pebble-tool via uv
+RUN uv tool install pebble-tool --python 3.11
+
+# Ensure pebble is in PATH
+ENV PATH="/root/.local/share/uv/tools/pebble-tool/bin:$PATH"
+
+# Install the Pebble SDK (this downloads SDK + toolchain + QEMU)
+RUN pebble sdk install latest
+
+# Set up SDK paths for CloudPebble
+ENV PEBBLE_SDK_PATH=/root/.pebble-sdk
+ENV PATH="${PEBBLE_SDK_PATH}/SDKs/current/toolchain/arm-none-eabi/bin:$PATH"
 
 ADD requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
-
-ENV SDK_THREE_CHANNEL=beta
-ENV SDK_THREE_VERSION=4.3
-
-# Install SDK 3
-RUN mkdir /sdk3 && \
-  curl -L "https://github.com/aveao/PebbleArchive/raw/master/SDKCores/sdk-core-$SDK_THREE_VERSION.tar.bz2" | \
-  tar --strip-components=1 -xj -C /sdk3
-
-# Install SDK 3 Node dependencies
-RUN cd /sdk3 && npm install
-ENV WAF_NODE_PATH=/sdk3/node_modules
+# Use Python 3.11 from the base image directly
+RUN /usr/local/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY . /code
 WORKDIR /code
@@ -66,7 +70,7 @@ RUN rm -rf bower_components && \
     "bluebird#3.3.4" \
     "kanaka/noVNC#v0.5"
 
-RUN python manage.py compilemessages
+RUN /usr/local/bin/python manage.py compilemessages
 
 RUN make -C /code/c-preload
 
