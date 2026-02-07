@@ -2,7 +2,22 @@
 
 CloudPebble is a web-based IDE for developing Pebble smartwatch applications. This repository assembles all CloudPebble components via Docker Compose into a fully functional development environment.
 
-**Updated February 2026** to work with modern Docker, fix EOL Debian repos, and support HTTPS deployments.
+**🎉 Modernized February 2026** - Now running Python 3.11 + Django 4.2 LTS + pebble-tool v5.0!
+
+## Modernization Status (py3-modernize branch)
+
+| Component | Before | After | Status |
+|-----------|--------|-------|--------|
+| Python | 2.7 (EOL) | **3.11** | ✅ Complete |
+| Django | 1.6 (EOL) | **4.2 LTS** | ✅ Complete |
+| Celery | 3.1 (EOL) | **5.x** | ✅ Complete |
+| Build System | waf + SDK 4.3 | **pebble-tool 5.0.23 + SDK 4.9.77** | ✅ Complete |
+| Migrations | South | **Django native** | ✅ Complete |
+| Web/Celery | - | - | ✅ Tested |
+| Emulator (QEMU) | Python 2.7 | - | 🔄 Not yet updated |
+| Code Completion (YCMD) | Python 2.7 | - | 🔄 Not yet updated |
+
+**Live demo:** https://cloudpebble-dev.exe.xyz (test with `testuser`/`testpass123`)
 
 ## Quick Start
 
@@ -594,24 +609,42 @@ class BuildResult(models.Model):
 
 ## Build System
 
-### SDK Structure
+### SDK Structure (pebble-tool 5.0+)
 
 ```
-/sdk3/
-├── pebble/waf         # Build tool
-├── include/           # Pebble API headers
-└── lib/<platform>/    # Prebuilt libraries
+~/.pebble-sdk/
+├── SDKs/
+│   └── 4.9.77/           # Installed SDK version
+│       ├── pebble/
+│       │   ├── common/
+│       │   └── sdk/
+│       │       └── include/    # Pebble API headers
+│       └── arm-cs-tools/       # ARM toolchain
+└── .pebble-tool               # pebble-tool config
+```
+
+### Build Command
+
+```bash
+# pebble-tool handles everything
+pebble build
+
+# Builds all platforms automatically based on package.json
 ```
 
 ### Output
 
 ```
 build/
-├── <platform>/
+├── aplite/
 │   ├── pebble-app.bin
 │   ├── pebble-app.elf      # Debug symbols
 │   └── app_resources.pbpack
-└── <project>.pbw           # Final package
+├── basalt/
+├── chalk/
+├── diorite/
+├── emery/
+└── <project>.pbw           # Final package (all platforms)
 ```
 
 ---
@@ -644,82 +677,79 @@ Browser → WebSocket /ws/phone → App install
 
 ## 2026 Updates
 
-Key changes from the original CloudPebble:
+### February 2026 Modernization (py3-modernize branch)
+
+Major upgrade from Python 2.7/Django 1.6 to Python 3.11/Django 4.2:
+
+| Change | Details |
+|--------|---------|
+| **Python 3.11** | Full migration from Python 2.7 |
+| **Django 4.2 LTS** | Upgraded from Django 1.6 (supported until April 2026) |
+| **Celery 5.x** | Upgraded from Celery 3.1 |
+| **pebble-tool 5.0.23** | Replaces old waf-based SDK build system |
+| **SDK 4.9.77** | Latest Pebble SDK from coredevices |
+| **uv package manager** | Modern Python package management |
+| **Fresh Django migrations** | Replaced South migrations |
+| **CSRF trusted origins** | Fixed for HTTPS deployments |
+
+### Build System Changes
+
+The build system now uses `pebble-tool` instead of the old waf-based SDK:
+
+```python
+# Old (Python 2.7 + waf)
+subprocess.call(['/sdk3/pebble/waf', 'configure', 'build'])
+
+# New (Python 3.11 + pebble-tool)
+subprocess.run(['pebble', 'build'], cwd=project_dir)
+```
+
+Benefits:
+- No Python 2.7 dependency
+- Cleaner toolchain management
+- SDK auto-installation via `pebble sdk install latest`
+
+### Earlier 2026 Updates
 
 | Change | Details |
 |--------|---------|
 | **Debian EOL fixes** | All Dockerfiles use `archive.debian.org` |
-| **Node.js updates** | Upgraded to Node 16.x, skip dead GPG keyservers |
 | **Docker Compose v2** | Modern compose file format |
 | **HTTPS support** | `EXPECT_SSL` env var, nginx for WebSocket proxying |
-| **SSL verification** | Disabled for internal requests (self-signed/proxy setups) |
 | **nginx reverse proxy** | Added for proper WebSocket and S3 routing |
 
 ---
 
-## Limitations
+## Current Limitations
 
-| Limitation | Reason | Workaround |
-|------------|--------|------------|
-| No Pebble SSO | Pebble's auth servers are gone | Use local accounts |
-| No phone installs | Requires SSO token | Use emulator only |
-| No timeline sync | Pebble servers are down | N/A |
-| Python 2.7 | Original codebase | Modernization needed |
+| Limitation | Status | Notes |
+|------------|--------|-------|
+| No Pebble SSO | Expected | Pebble's auth servers are gone; use local accounts |
+| No phone installs | Expected | Requires SSO token; use emulator |
+| Emulator | 🔄 Needs Python 3 | QEMU controller still on Python 2.7 |
+| Code completion | 🔄 Needs Python 3 | YCMD proxy still on Python 2.7 |
 
 ---
 
-## Modernization Proposal
+## Remaining Modernization Work
 
-### Current State Analysis
+### Completed ✅
 
-| Component | Current Version | Status | Risk Level |
-|-----------|-----------------|--------|------------|
-| Python | 2.7 | EOL Jan 2020 | 🔴 Critical |
-| Django | 1.6 | EOL Oct 2015 | 🔴 Critical |
-| Node.js | 16.x | EOL Sep 2023 | 🟡 High |
-| Celery | 3.1 | EOL 2019 | 🟡 High |
-| PostgreSQL | Latest | ✅ OK | 🟢 Low |
-| Redis | Latest | ✅ OK | 🟢 Low |
-| jQuery | 2.1 | Old but functional | 🟡 Medium |
-| CodeMirror | 4.2 | Very old (current: 6.x) | 🟡 Medium |
+- [x] Python 2.7 → Python 3.11
+- [x] Django 1.6 → Django 4.2 LTS
+- [x] Celery 3.1 → Celery 5.x
+- [x] South migrations → Django native migrations
+- [x] Old waf SDK → pebble-tool 5.0
+- [x] Build system working (all 5 platforms)
+- [x] Browser UI tested and working
 
-### Recommended Approach: Phased Modernization
+### Still TODO 🔄
 
-#### Phase 1: Infrastructure (1-2 weeks)
-
-1. **Python 2 → Python 3.11**
-   - Use `2to3` for automatic conversion
-   - Update requirements.txt
-
-2. **Django 1.6 → Django 4.2 LTS**
-   - Update URL patterns, middleware, settings
-   - Migrate South → Django migrations
-
-3. **Replace fake-s3 with MinIO**
-   - Actively maintained, production-ready
-
-4. **Update Celery 3.1 → 5.3**
-
-#### Phase 2: Production Setup (2-3 days)
-
-Single Hetzner server setup with:
-- Traefik for HTTPS/Let's Encrypt
-- Docker Compose with resource limits
-- **Recommended:** CX31 (4 vCPU, 8GB RAM) - €8.98/month
-
-#### Phase 3: Frontend (Optional, 2-4 weeks)
-
-**Option A:** Update CodeMirror only (3-5 days)  
-**Option B:** Replace Backbone with Alpine.js (1-2 weeks)  
-**Option C:** Full rewrite with Svelte (4-6 weeks)
-
-### Questions for Feedback
-
-1. **Python/Django upgrade** - In-place or fresh start?
-2. **Frontend strategy** - Minimal, moderate, or full rewrite?
-3. **Authentication** - Local only, or add OAuth (GitHub/Google)?
-4. **Emulator** - Keep QEMU as-is, or explore WebAssembly?
-5. **Hosting** - Single server, or split web/workers?
+- [ ] **QEMU Controller** - Upgrade to Python 3
+- [ ] **YCMD Proxy** - Upgrade to Python 3
+- [ ] **Remove SDK2 code paths** - Clean up legacy code
+- [ ] **Update frontend libraries** - CodeMirror 4.2 → 6.x (optional)
+- [ ] **MinIO** - Replace fake-s3 (optional, for production)
 
 ---
 
