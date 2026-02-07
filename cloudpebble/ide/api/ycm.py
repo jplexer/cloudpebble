@@ -26,7 +26,11 @@ def init_autocomplete(request, project_id):
 
     file_contents = {}
     for f in source_files:
-        file_contents[f.project_path] = f.get_contents()
+        content = f.get_contents()
+        # Ensure content is string, not bytes
+        if isinstance(content, bytes):
+            content = content.decode('utf-8')
+        file_contents[f.project_path] = content
 
     identifiers = [(f.kind, i.resource_id) for f in project.resources.all() for i in f.identifiers.all()]
 
