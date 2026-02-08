@@ -1,8 +1,5 @@
 name: cloudpebble
 
-# Set PUBLIC_URL for the deployment
-x-public-url: &public-url "https://cloudpebble-dev.exe.xyz"
-
 services:
   nginx:
     image: nginx:alpine
@@ -27,12 +24,12 @@ services:
       - DEBUG=yes
       - RUN_WEB=yes
       - AWS_ENABLED=yes
-      - PORT=8000
+      - PORT=80
       - AWS_S3_FAKE_S3=s3:4569
-      - MEDIA_URL=https://cloudpebble-dev.exe.xyz/s3builds/
-      - QEMU_URLS=https://cloudpebble-dev.exe.xyz/
-      - YCM_URLS=https://cloudpebble-dev.exe.xyz/ycmd/
-      - PUBLIC_URL=https://cloudpebble-dev.exe.xyz/
+      - MEDIA_URL=${PUBLIC_URL}/s3builds/
+      - QEMU_URLS=${PUBLIC_URL}/
+      - YCM_URLS=${PUBLIC_URL}/ycmd/
+      - PUBLIC_URL=${PUBLIC_URL}/
       - EXPECT_SSL=${EXPECT_SSL:-no}
       - LIBPEBBLE_PROXY=wss://cloudpebble-ws.herokuapp.com/tool
       - PEBBLE_AUTH_URL=https://auth.rebble.io
@@ -47,7 +44,7 @@ services:
       - DEBUG=yes
       - RUN_CELERY=yes
       - AWS_ENABLED=yes
-      - EXPORT_ROOT=http://web:8000/export.cloudpebble.net/
+      - EXPORT_ROOT=http://web:80/export.cloudpebble.net/
       - AWS_S3_FAKE_S3=s3:4569
 
   qemu:
@@ -64,11 +61,19 @@ services:
     image: redis
 
   postgres:
-    image: postgres
+    image: postgres:16
     environment:
       - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
   s3:
     image: kuracloud/fake-s3
     ports:
       - "8003:4569"
+    volumes:
+      - s3-data:/fakes3_root
+
+volumes:
+  postgres-data:
+  s3-data:

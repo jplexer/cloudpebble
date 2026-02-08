@@ -75,10 +75,12 @@ ALLOWED_HOSTS = ['*']
 
 # Django 4.2+ requires CSRF_TRUSTED_ORIGINS for cross-origin requests
 CSRF_TRUSTED_ORIGINS = [
-    'https://cloudpebble-dev.exe.xyz',
     'http://localhost:8000',
     'http://localhost:8080',
 ]
+_public_url = os.environ.get('PUBLIC_URL', '').rstrip('/')
+if _public_url:
+    CSRF_TRUSTED_ORIGINS.append(_public_url)
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
