@@ -4,6 +4,7 @@ import base64
 import tempfile
 import json
 import subprocess
+import sys
 import requests
 import hmac
 import hashlib
@@ -32,16 +33,16 @@ class YCM(object):
         self.wait()
 
     def _spawn(self):
-        with tempfile.NamedTemporaryFile(delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             ycmd_settings = json.load(open(settings.YCMD_SETTINGS))
-            ycmd_settings['hmac_secret'] = base64.b64encode(self._secret)
+            ycmd_settings['hmac_secret'] = base64.b64encode(self._secret).decode('ascii')
             ycmd_settings['confirm_extra_conf'] = 0
             json.dump(ycmd_settings, f)
             options_file = f.name
         env = os.environ.copy()
         env['PLATFORM'] = self.platform
         self._process = subprocess.Popen([
-            settings.YCMD_BINARY,
+            sys.executable, settings.YCMD_BINARY,
             '--idle_suicide_seconds', '300',
             '--port', str(self._port),
             '--options_file', options_file
@@ -105,7 +106,7 @@ class YCM(object):
     def ping(self):
         self._update_ping()
         headers = {
-            'X-Ycm-Hmac': self._hmac(''),
+            'X-Ycm-Hmac': self._request_hmac('GET', '/healthy', ''),
         }
         return requests.get("http://localhost:%d/healthy" % self._port, headers=headers).status_code == 200
 
@@ -129,7 +130,7 @@ class YCM(object):
         result = self._request("completions", request)
         if result.status_code == 200:
             response = result.json()
-            completions = map(self._clean_symbol, filter(is_valid_symbol, response['completions'])[:10])
+            completions = list(map(self._clean_symbol, filter(is_valid_symbol, response['completions'])[:10]))
             return {
                 'completions': completions,
                 'completion_start_column': response['completion_start_column'],
@@ -142,26 +143,44 @@ class YCM(object):
             try:
                 gevent.sleep(0.1)
                 headers = {
-                    'X-Ycm-Hmac': self._hmac(''),
+                    'X-Ycm-Hmac': self._request_hmac('GET', '/ready', ''),
                 }
                 result = requests.get("http://localhost:%d/ready" % self._port, headers=headers)
-                print result
+                print(result)
             except requests.exceptions.ConnectionError:
                 pass
             else:
                 if 200 <= result.status_code < 300 and result.json():
                     return True
 
-    def _hmac(self, body):
-        return base64.b64encode(hmac.new(self._secret, body, hashlib.sha256).hexdigest())
+    def _content_hmac(self, content):
+        if isinstance(content, str):
+            content = content.encode('utf-8')
+        return hmac.new(self._secret, content, hashlib.sha256).digest()
+
+    def _request_hmac(self, method, path, body):
+        if isinstance(method, str):
+            method = method.encode('utf-8')
+        if isinstance(path, str):
+            path = path.encode('utf-8')
+        if isinstance(body, str):
+            body = body.encode('utf-8')
+        method_hmac = self._content_hmac(method)
+        path_hmac = self._content_hmac(path)
+        body_hmac = self._content_hmac(body)
+        joined = method_hmac + path_hmac + body_hmac
+        return base64.b64encode(
+            self._content_hmac(joined)
+        ).decode('ascii')
 
     def _request(self, endpoint, data=None):
         body = json.dumps(data)
+        path = '/%s' % endpoint
         headers = {
-            'X-Ycm-Hmac': self._hmac(body),
+            'X-Ycm-Hmac': self._request_hmac('POST', path, body),
             'Content-Type': 'application/json',
         }
-        return requests.post("http://localhost:%d/%s" % (self._port, endpoint), body, headers=headers)
+        return requests.post("http://localhost:%d%s" % (self._port, path), body, headers=headers)
 
     def _update_ping(self):
         self._last_ping = time.time()
@@ -171,11 +190,11 @@ class YCM(object):
         return time.time() < self._last_ping + 280
 
     def close(self):
-        print "terminating server"
+        print("terminating server")
         try:
             self._process.terminate()
         except Exception as e:
-            print "Error terminating process: %s" % e
+            print("Error terminating process: %s" % e)
         try:
             shutil.rmtree(self.files.root_dir)
         except:

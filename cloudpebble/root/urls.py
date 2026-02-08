@@ -1,8 +1,9 @@
-from django.conf.urls import patterns, url, include
+from django.urls import path, re_path, include
 
 from root import views
 
-urlpatterns = patterns('',
-    url(r'^$', views.index, name='index'),
-    url(r'^i18n/', include('django.conf.urls.i18n'))
-)
+app_name = 'root'
+urlpatterns = [
+    re_path(r'^$', views.index, name='index'),
+    re_path(r'^i18n/', include('django.conf.urls.i18n'))
+]

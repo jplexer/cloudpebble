@@ -3,7 +3,7 @@ __author__ = 'katharine'
 import json
 import requests
 import random
-import urlparse
+from urllib import parse as urlparse
 import string
 import logging
 
@@ -11,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from utils.redis_helper import redis_client
 from utils.jsonview import json_view, InternalServerError
@@ -114,4 +114,4 @@ def handle_phone_token(request, token):
 def _generate_token():
     rng = random.SystemRandom()
     valid = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(rng.choice(valid) for i in xrange(30))
+    return ''.join(rng.choice(valid) for i in range(30))

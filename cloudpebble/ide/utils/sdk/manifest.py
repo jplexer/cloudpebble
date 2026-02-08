@@ -2,7 +2,7 @@ import json
 import re
 import uuid
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from ide.utils.project import APPINFO_MANIFEST, PACKAGE_MANIFEST, InvalidProjectArchiveException
 

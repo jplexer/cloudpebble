@@ -1,20 +1,21 @@
 import logging
 
-import boto
-from boto.s3.key import Key
-from boto.s3.connection import OrdinaryCallingFormat, NoHostProvided
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 
-def _ensure_bucket_exists(s3, bucket):
+def _ensure_bucket_exists(s3_client, bucket):
     try:
-        s3.create_bucket(bucket)
-    except boto.exception.S3ResponseError:
-        pass
-    else:
+        s3_client.create_bucket(Bucket=bucket)
         logger.info("Created bucket %s" % bucket)
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
+            # Bucket exists, that's fine
+            pass
 
 
 class BucketHolder(object):
@@ -22,49 +23,74 @@ class BucketHolder(object):
     See: https://docs.djangoproject.com/en/dev/internals/contributing/writing-code/coding-style/#use-of-django-conf-settings """
 
     def __init__(self):
-        self.buckets = {}
+        self.bucket_names = {}
         self.configured = False
         self.s3 = None
+        self.s3_resource = None
 
     def configure(self):
         if settings.AWS_ENABLED:
             if settings.AWS_S3_FAKE_S3 is None:
-                # The host must be manually specified in Python 2.7.9+ due to
-                # https://github.com/boto/boto/issues/2836 this bug in boto with .s in
-                # bucket names.
-                host = settings.AWS_S3_HOST if settings.AWS_S3_HOST else NoHostProvided
-
-                self.s3 = boto.connect_s3(
-                    settings.AWS_ACCESS_KEY_ID,
-                    settings.AWS_SECRET_ACCESS_KEY,
-                    host=host,
-                    calling_format=OrdinaryCallingFormat()
+                # Real AWS S3
+                self.s3 = boto3.client(
+                    's3',
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    region_name=getattr(settings, 'AWS_S3_REGION', 'us-east-1'),
+                )
+                self.s3_resource = boto3.resource(
+                    's3',
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    region_name=getattr(settings, 'AWS_S3_REGION', 'us-east-1'),
                 )
             else:
-                host, port = (settings.AWS_S3_FAKE_S3.split(':', 2) + [80])[:2]
+                # Fake S3 (e.g., minio, fake-s3)
+                host, port = (settings.AWS_S3_FAKE_S3.split(':', 2) + ['80'])[:2]
                 port = int(port)
-                self.s3 = boto.connect_s3("key_id", "secret_key", is_secure=False, port=port,
-                                          host=host, calling_format=OrdinaryCallingFormat())
+                endpoint_url = f'http://{host}:{port}'
+                
+                self.s3 = boto3.client(
+                    's3',
+                    aws_access_key_id='key_id',
+                    aws_secret_access_key='secret_key',
+                    endpoint_url=endpoint_url,
+                    config=Config(s3={'addressing_style': 'path'}),
+                )
+                self.s3_resource = boto3.resource(
+                    's3',
+                    aws_access_key_id='key_id',
+                    aws_secret_access_key='secret_key',
+                    endpoint_url=endpoint_url,
+                    config=Config(s3={'addressing_style': 'path'}),
+                )
+                
                 _ensure_bucket_exists(self.s3, settings.AWS_S3_SOURCE_BUCKET)
                 _ensure_bucket_exists(self.s3, settings.AWS_S3_EXPORT_BUCKET)
                 _ensure_bucket_exists(self.s3, settings.AWS_S3_BUILDS_BUCKET)
 
-            self.buckets = {
-                'source': self.s3.get_bucket(settings.AWS_S3_SOURCE_BUCKET),
-                'export': self.s3.get_bucket(settings.AWS_S3_EXPORT_BUCKET),
-                'builds': self.s3.get_bucket(settings.AWS_S3_BUILDS_BUCKET),
+            self.bucket_names = {
+                'source': settings.AWS_S3_SOURCE_BUCKET,
+                'export': settings.AWS_S3_EXPORT_BUCKET,
+                'builds': settings.AWS_S3_BUILDS_BUCKET,
             }
             self.configured = True
         else:
             self.s3 = None
-            self.buckets = None
+            self.s3_resource = None
+            self.bucket_names = None
 
     def __getitem__(self, item):
         if settings.TESTING:
             raise Exception("S3 not mocked in test!")
         if not self.configured:
             self.configure()
-        return self.buckets[item]
+        return self.bucket_names[item]
+    
+    def get_bucket(self, item):
+        if not self.configured:
+            self.configure()
+        return self.s3_resource.Bucket(self.bucket_names[item])
 
 
 _buckets = BucketHolder()
@@ -82,67 +108,79 @@ def _requires_aws(fn):
 
 @_requires_aws
 def read_file(bucket_name, path):
-    bucket = _buckets[bucket_name]
-    key = bucket.get_key(path)
-    return key.get_contents_as_string()
+    bucket_n = _buckets[bucket_name]
+    response = _buckets.s3.get_object(Bucket=bucket_n, Key=path)
+    return response['Body'].read()
 
 
 @_requires_aws
 def read_file_to_filesystem(bucket_name, path, destination):
-    bucket = _buckets[bucket_name]
-    key = bucket.get_key(path)
-    key.get_contents_to_filename(destination)
+    bucket_n = _buckets[bucket_name]
+    _buckets.s3.download_file(bucket_n, path, destination)
 
 
 @_requires_aws
 def delete_file(bucket_name, path):
-    bucket = _buckets[bucket_name]
-    key = bucket.get_key(path)
-    key.delete()
+    bucket_n = _buckets[bucket_name]
+    _buckets.s3.delete_object(Bucket=bucket_n, Key=path)
 
 
 @_requires_aws
 def save_file(bucket_name, path, value, public=False, content_type='application/octet-stream'):
-    bucket = _buckets[bucket_name]
-    key = Key(bucket)
-    key.key = path
-
+    bucket_n = _buckets[bucket_name]
+    
+    extra_args = {'ContentType': content_type}
     if public:
-        policy = 'public-read'
-    else:
-        policy = 'private'
-
-    key.set_contents_from_string(value, policy=policy, headers={'Content-Type': content_type})
+        extra_args['ACL'] = 'public-read'
+    
+    if isinstance(value, str):
+        value = value.encode('utf-8')
+    
+    _buckets.s3.put_object(
+        Bucket=bucket_n,
+        Key=path,
+        Body=value,
+        **extra_args
+    )
 
 
 @_requires_aws
 def upload_file(bucket_name, dest_path, src_path, public=False, content_type='application/octet-stream',
                 download_filename=None):
-    bucket = _buckets[bucket_name]
-    key = Key(bucket)
-    key.key = dest_path
-
+    bucket_n = _buckets[bucket_name]
+    
+    extra_args = {'ContentType': content_type}
     if public:
-        policy = 'public-read'
-    else:
-        policy = 'private'
-
-    headers = {
-        'Content-Type': content_type
-    }
-
+        extra_args['ACL'] = 'public-read'
+    
     if download_filename is not None:
-        headers['Content-Disposition'] = 'attachment;filename="%s"' % download_filename.replace(' ', '_')
-
-    key.set_contents_from_filename(src_path, policy=policy, headers=headers)
+        extra_args['ContentDisposition'] = 'attachment;filename="%s"' % download_filename.replace(' ', '_')
+    
+    _buckets.s3.upload_file(src_path, bucket_n, dest_path, ExtraArgs=extra_args)
 
 
 @_requires_aws
 def get_signed_url(bucket_name, path, headers=None):
-    bucket = _buckets[bucket_name]
-    key = bucket.get_key(path)
-    url = key.generate_url(3600, response_headers=headers)
+    bucket_n = _buckets[bucket_name]
+    
+    params = {
+        'Bucket': bucket_n,
+        'Key': path,
+    }
+    
+    if headers:
+        params['ResponseContentType'] = headers.get('Content-Type', headers.get('response-content-type'))
+        if 'Content-Disposition' in headers or 'response-content-disposition' in headers:
+            params['ResponseContentDisposition'] = headers.get('Content-Disposition', headers.get('response-content-disposition'))
+    
+    url = _buckets.s3.generate_presigned_url(
+        'get_object',
+        Params=params,
+        ExpiresIn=3600
+    )
+    
     # hack to avoid invalid SSL certs.
     if '.cloudpebble.' in url:
         url = url.replace('.s3.amazonaws.com', '')
+    
     return url

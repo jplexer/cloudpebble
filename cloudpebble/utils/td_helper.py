@@ -24,10 +24,10 @@ def generate_scoped_key(user):
 
 def _flatten(d, parent_key=''):
     items = []
-    for k, v in d.iteritems():
+    for k, v in d.items():
         new_key = parent_key + '_0_' + k if parent_key else k
         if isinstance(v, collections.MutableMapping):
-            items.extend(_flatten(v, new_key).iteritems())
+            items.extend(_flatten(v, new_key).items())
         else:
             items.append((new_key, v))
     return dict(items)
@@ -42,7 +42,7 @@ def send_td_event(event, data=None, request=None, project=None, user=None):
     data['cloudpebble'] = {}
 
     if user is None:
-        if request is not None and request.user.is_authenticated():
+        if request is not None and request.user.is_authenticated:
             user = request.user
         elif project is not None:
             user = project.owner

@@ -1,12 +1,13 @@
 import base64
 import json
-import urllib2
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 import re
 import logging
 
 from github import Github, BadCredentialsException, UnknownObjectException
 from github.NamedUser import NamedUser
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.conf import settings
 
 from ide.models.user import UserGithub
@@ -43,11 +44,11 @@ def git_verify_tokens(user):
 
     auth_string = base64.encodestring('%s:%s' %
                                       (settings.GITHUB_CLIENT_ID, settings.GITHUB_CLIENT_SECRET)).replace('\n', '')
-    r = urllib2.Request('https://api.github.com/applications/%s/tokens/%s' % (settings.GITHUB_CLIENT_ID, token))
+    r = Request('https://api.github.com/applications/%s/tokens/%s' % (settings.GITHUB_CLIENT_ID, token))
     r.add_header("Authorization", "Basic %s" % auth_string)
     try:
-        json.loads(urllib2.urlopen(r).read())
-    except urllib2.HTTPError as e:
+        json.loads(urlopen(r).read())
+    except HTTPError as e:
         # No such token
         if e.getcode() == 404:
             github = user.github

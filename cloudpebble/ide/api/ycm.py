@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 from ide.models.project import Project
 from utils.jsonview import json_view
@@ -26,7 +26,11 @@ def init_autocomplete(request, project_id):
 
     file_contents = {}
     for f in source_files:
-        file_contents[f.project_path] = f.get_contents()
+        content = f.get_contents()
+        # Ensure content is string, not bytes
+        if isinstance(content, bytes):
+            content = content.decode('utf-8')
+        file_contents[f.project_path] = content
 
     identifiers = [(f.kind, i.resource_id) for f in project.resources.all() for i in f.identifiers.all()]
 
@@ -58,9 +62,12 @@ def _spin_up_server(request):
             if result.ok:
                 response = result.json()
                 if response['success']:
-                    secure = response['secure']
+                    # Use PUBLIC_URL for the WebSocket URL returned to the browser
+                    public_url = getattr(settings, 'PUBLIC_URL', server)
+                    public_ycm = public_url.rstrip('/') + '/ycmd/'
+                    secure = public_url.startswith('https')
                     scheme = "wss" if secure else "ws"
-                    ws_server = urlparse(server)._replace(scheme=scheme).geturl()
+                    ws_server = urlparse(public_ycm)._replace(scheme=scheme).geturl()
                     return {
                         'uuid': response['uuid'],
                         'server': ws_server,
@@ -74,4 +81,4 @@ def _spin_up_server(request):
             traceback.print_exc()
         logger.warning("Server %s failed; trying another.", server)
     # If we get out of here, something went wrong.
-    raise Exception(_('No Servers'))
+    raise Exception('No YCM servers available')

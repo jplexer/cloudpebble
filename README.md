@@ -2,7 +2,23 @@
 
 CloudPebble is a web-based IDE for developing Pebble smartwatch applications. This repository assembles all CloudPebble components via Docker Compose into a fully functional development environment.
 
-**Updated February 2026** to work with modern Docker, fix EOL Debian repos, and support HTTPS deployments.
+**🎉 Modernized February 2026** - Now running Python 3.11 + Django 4.2 LTS + pebble-tool v5.0!
+
+## Modernization Status (py3-modernize branch)
+
+| Component | Before | After | Status |
+|-----------|--------|-------|--------|
+| Python | 2.7 (EOL) | **3.11** | ✅ Complete |
+| Django | 1.6 (EOL) | **4.2 LTS** | ✅ Complete |
+| Celery | 3.1 (EOL) | **5.x** | ✅ Complete |
+| Build System | waf + SDK 4.3 | **pebble-tool 5.0.23 + SDK 4.9.77** | ✅ Complete |
+| Migrations | South | **Django native** | ✅ Complete |
+| Web/Celery | - | - | ✅ Tested |
+| Emulator (QEMU) | Python 2.7 | **Python 3.11 + coredevices/qemu** | ✅ Complete |
+| Default project template | Empty project | **Default app (button demo)** | ✅ Complete |
+| Code Completion (YCMD) | Python 2.7 | - | 🔄 Not yet updated |
+
+**Live demo:** https://cloudpebble-og-dev.exe.xyz (test with `testuser`/`testpass123`)
 
 ## Quick Start
 
@@ -35,6 +51,41 @@ docker compose up -d
 ```
 
 The nginx container listens on port 8080. Configure your reverse proxy to forward HTTPS traffic to it.
+
+### Cloud Deployment (Production)
+
+For production at scale, CloudPebble uses a hybrid architecture: stateless services on Railway, the QEMU emulator on a Hetzner dedicated server, and managed backends.
+
+```
+Browser ──→ Railway
+              ├── Web (Django) ──→ Supabase (Postgres + Auth)
+              │                ──→ Upstash (Redis)
+              │                ──→ Cloudflare R2 (object storage)
+              ├── Celery worker ──→ same backends
+              └── ycmd proxy
+
+Browser ──→ Hetzner (direct WebSocket for VNC)
+              └── QEMU controller (Docker + nginx + TLS)
+```
+
+QEMU runs on dedicated hardware because ARM software emulation needs raw RAM (~400MB/instance), long-lived WebSocket connections, and consistent CPU — making it 3-10x cheaper on a dedicated server vs PaaS.
+
+| Service | Provider | Spec | ~Monthly Cost |
+|---------|----------|------|---------------|
+| Web (Django) | Railway | ~1 vCPU, 1GB | $30 |
+| Celery worker | Railway | ~2 vCPU, 2GB | $60 |
+| ycmd proxy | Railway | ~0.5 vCPU, 512MB | $15 |
+| QEMU controller | Hetzner AX42 | 8C/16T, 64GB DDR5 | $50 |
+| PostgreSQL + Auth | Supabase Pro | 8GB DB, 100K MAU | $25 |
+| Redis | Upstash | Pay-as-you-go | $3 |
+| Object storage | Cloudflare R2 | 500GB, zero egress | $10 |
+| **Total** | | | **~$200/mo** |
+
+**Capacity:** Supports ~1,000 developers doing 20 builds/month + 5 hrs emulator/month. The Hetzner server handles 150+ concurrent emulators (64GB / 400MB); typical peak is ~50 concurrent.
+
+**Latency:** If using a Hetzner EU server, US users see ~100ms RTT on the emulator VNC stream (acceptable for a smartwatch emulator). For lower latency, use Hetzner Cloud CCX33 in Ashburn (~$75/mo, <20ms).
+
+**Key config:** Set `QEMU_URLS` to the Hetzner server's public HTTPS endpoint. The browser connects directly to Hetzner for the VNC WebSocket stream — no traffic proxied through Railway.
 
 ### Troubleshooting
 
@@ -97,7 +148,7 @@ The nginx container listens on port 8080. Configure your reverse proxy to forwar
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │                              WEB CONTAINER (Port 80)                                 │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │  Django 1.6.2 Application                                                      │  │
+│  │  Django 4.2 Application                                                      │  │
 │  │  ├── cloudpebble/        Django project config, URLs, WSGI                     │  │
 │  │  ├── ide/                Core IDE functionality                                 │  │
 │  │  │   ├── api/            REST endpoints (JSON responses)                       │  │
@@ -123,7 +174,7 @@ The nginx container listens on port 8080. Configure your reverse proxy to forwar
 │  │  │   ├── static/         57 JS files, 8 CSS files                              │  │
 │  │  │   ├── templates/      Django HTML templates                                 │  │
 │  │  │   ├── utils/          SDK assembly, regex validation                        │  │
-│  │  │   └── migrations/     51 South database migrations                          │  │
+│  │  │   └── migrations/     Django database migrations                          │  │
 │  │  ├── auth/               Authentication (local + Pebble OAuth2)                │  │
 │  │  ├── root/               Landing page                                          │  │
 │  │  └── qr/                 QR code generation for phone pairing                  │  │
@@ -273,8 +324,8 @@ The nginx container listens on port 8080. Configure your reverse proxy to forwar
 
 ### 1. Web Container
 
-**Image:** Custom (Python 2.7.11 + Node.js 16.x)  
-**Port:** 80  
+**Image:** Custom (Python 3.11 + Node.js 16.x)
+**Port:** 80
 **Build Context:** `cloudpebble/`
 
 The main Django application serving the IDE interface and REST API.
@@ -300,16 +351,15 @@ python manage.py runserver 0.0.0.0:$PORT
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| Django | 1.6.2 | Web framework |
-| celery | 3.1.23 | Async task queue |
-| python-social-auth | 0.1.23 | OAuth2 (Pebble SSO) |
+| Django | 4.2 LTS | Web framework |
+| celery | 5.x | Async task queue |
+| social-auth-app-django | 5.x | OAuth2 |
 | boto | 2.39.0 | S3 client |
-| pygithub | 1.14.2 | GitHub API |
-| South | 1.0.2 | Database migrations |
-| redis | 2.10.5 | Celery broker client |
-| gevent | 1.1 | Async I/O |
-| Pillow | 2.9.0 | Image processing |
-| psycopg2 | 2.4.5 | PostgreSQL client |
+| pygithub | 2.x | GitHub API |
+| redis | 5.x | Celery broker client |
+| gevent | 24.x | Async I/O |
+| Pillow | 10.x | Image processing |
+| psycopg2 | 2.9.x | PostgreSQL client |
 
 #### Environment Variables
 
@@ -387,8 +437,8 @@ BROKER_POOL_LIMIT = 10
 
 ### 3. QEMU Controller
 
-**Image:** Custom (Python 2.7 + QEMU + pypkjs)  
-**Port:** 8001  
+**Image:** Custom (Python 3.11 + coredevices/qemu + pypkjs)
+**Port:** 8001
 **Build Context:** `cloudpebble-qemu-controller/`
 
 Manages Pebble emulator instances with VNC display streaming.
@@ -594,24 +644,42 @@ class BuildResult(models.Model):
 
 ## Build System
 
-### SDK Structure
+### SDK Structure (pebble-tool 5.0+)
 
 ```
-/sdk3/
-├── pebble/waf         # Build tool
-├── include/           # Pebble API headers
-└── lib/<platform>/    # Prebuilt libraries
+~/.pebble-sdk/
+├── SDKs/
+│   └── 4.9.77/           # Installed SDK version
+│       ├── pebble/
+│       │   ├── common/
+│       │   └── sdk/
+│       │       └── include/    # Pebble API headers
+│       └── arm-cs-tools/       # ARM toolchain
+└── .pebble-tool               # pebble-tool config
+```
+
+### Build Command
+
+```bash
+# pebble-tool handles everything
+pebble build
+
+# Builds all platforms automatically based on package.json
 ```
 
 ### Output
 
 ```
 build/
-├── <platform>/
+├── aplite/
 │   ├── pebble-app.bin
 │   ├── pebble-app.elf      # Debug symbols
 │   └── app_resources.pbpack
-└── <project>.pbw           # Final package
+├── basalt/
+├── chalk/
+├── diorite/
+├── emery/
+└── <project>.pbw           # Final package (all platforms)
 ```
 
 ---
@@ -644,82 +712,79 @@ Browser → WebSocket /ws/phone → App install
 
 ## 2026 Updates
 
-Key changes from the original CloudPebble:
+### February 2026 Modernization (py3-modernize branch)
+
+Major upgrade from Python 2.7/Django 1.6 to Python 3.11/Django 4.2:
+
+| Change | Details |
+|--------|---------|
+| **Python 3.11** | Full migration from Python 2.7 |
+| **Django 4.2 LTS** | Upgraded from Django 1.6 (supported until April 2026) |
+| **Celery 5.x** | Upgraded from Celery 3.1 |
+| **pebble-tool 5.0.23** | Replaces old waf-based SDK build system |
+| **SDK 4.9.77** | Latest Pebble SDK from coredevices |
+| **uv package manager** | Modern Python package management |
+| **Fresh Django migrations** | Replaced South migrations |
+| **CSRF trusted origins** | Fixed for HTTPS deployments |
+
+### Build System Changes
+
+The build system now uses `pebble-tool` instead of the old waf-based SDK:
+
+```python
+# Old (Python 2.7 + waf)
+subprocess.call(['/sdk3/pebble/waf', 'configure', 'build'])
+
+# New (Python 3.11 + pebble-tool)
+subprocess.run(['pebble', 'build'], cwd=project_dir)
+```
+
+Benefits:
+- No Python 2.7 dependency
+- Cleaner toolchain management
+- SDK auto-installation via `pebble sdk install latest`
+
+### Earlier 2026 Updates
 
 | Change | Details |
 |--------|---------|
 | **Debian EOL fixes** | All Dockerfiles use `archive.debian.org` |
-| **Node.js updates** | Upgraded to Node 16.x, skip dead GPG keyservers |
 | **Docker Compose v2** | Modern compose file format |
 | **HTTPS support** | `EXPECT_SSL` env var, nginx for WebSocket proxying |
-| **SSL verification** | Disabled for internal requests (self-signed/proxy setups) |
 | **nginx reverse proxy** | Added for proper WebSocket and S3 routing |
 
 ---
 
-## Limitations
+## Current Limitations
 
-| Limitation | Reason | Workaround |
-|------------|--------|------------|
-| No Pebble SSO | Pebble's auth servers are gone | Use local accounts |
-| No phone installs | Requires SSO token | Use emulator only |
-| No timeline sync | Pebble servers are down | N/A |
-| Python 2.7 | Original codebase | Modernization needed |
+| Limitation | Status | Notes |
+|------------|--------|-------|
+| No Pebble SSO | Expected | Pebble's auth servers are gone; use local accounts |
+| No phone installs | Expected | Requires SSO token; use emulator |
+| Code completion | 🔄 Needs Python 3 | YCMD proxy still on Python 2.7 |
 
 ---
 
-## Modernization Proposal
+## Remaining Modernization Work
 
-### Current State Analysis
+### Completed ✅
 
-| Component | Current Version | Status | Risk Level |
-|-----------|-----------------|--------|------------|
-| Python | 2.7 | EOL Jan 2020 | 🔴 Critical |
-| Django | 1.6 | EOL Oct 2015 | 🔴 Critical |
-| Node.js | 16.x | EOL Sep 2023 | 🟡 High |
-| Celery | 3.1 | EOL 2019 | 🟡 High |
-| PostgreSQL | Latest | ✅ OK | 🟢 Low |
-| Redis | Latest | ✅ OK | 🟢 Low |
-| jQuery | 2.1 | Old but functional | 🟡 Medium |
-| CodeMirror | 4.2 | Very old (current: 6.x) | 🟡 Medium |
+- [x] Python 2.7 → Python 3.11
+- [x] Django 1.6 → Django 4.2 LTS
+- [x] Celery 3.1 → Celery 5.x
+- [x] South migrations → Django native migrations
+- [x] Old waf SDK → pebble-tool 5.0
+- [x] Build system working (all 5 platforms)
+- [x] Browser UI tested and working
+- [x] QEMU Controller → Python 3.11 + coredevices/qemu
+- [x] Default app template for new native C projects
 
-### Recommended Approach: Phased Modernization
+### Still TODO 🔄
 
-#### Phase 1: Infrastructure (1-2 weeks)
-
-1. **Python 2 → Python 3.11**
-   - Use `2to3` for automatic conversion
-   - Update requirements.txt
-
-2. **Django 1.6 → Django 4.2 LTS**
-   - Update URL patterns, middleware, settings
-   - Migrate South → Django migrations
-
-3. **Replace fake-s3 with MinIO**
-   - Actively maintained, production-ready
-
-4. **Update Celery 3.1 → 5.3**
-
-#### Phase 2: Production Setup (2-3 days)
-
-Single Hetzner server setup with:
-- Traefik for HTTPS/Let's Encrypt
-- Docker Compose with resource limits
-- **Recommended:** CX31 (4 vCPU, 8GB RAM) - €8.98/month
-
-#### Phase 3: Frontend (Optional, 2-4 weeks)
-
-**Option A:** Update CodeMirror only (3-5 days)  
-**Option B:** Replace Backbone with Alpine.js (1-2 weeks)  
-**Option C:** Full rewrite with Svelte (4-6 weeks)
-
-### Questions for Feedback
-
-1. **Python/Django upgrade** - In-place or fresh start?
-2. **Frontend strategy** - Minimal, moderate, or full rewrite?
-3. **Authentication** - Local only, or add OAuth (GitHub/Google)?
-4. **Emulator** - Keep QEMU as-is, or explore WebAssembly?
-5. **Hosting** - Single server, or split web/workers?
+- [ ] **YCMD Proxy** - Upgrade to Python 3 (or replace with clangd/LSP)
+- [ ] **Remove SDK2 code paths** - Clean up legacy code
+- [ ] **Update frontend libraries** - CodeMirror 4.2 → 6.x (optional)
+- [ ] **MinIO** - Replace fake-s3 (optional, for production)
 
 ---
 

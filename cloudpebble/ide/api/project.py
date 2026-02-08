@@ -20,6 +20,65 @@ from utils.jsonview import json_view, BadRequest
 
 __author__ = 'katharine'
 
+NATIVE_DEFAULT_TEMPLATE = """\
+#include <pebble.h>
+
+static Window *s_main_window;
+static TextLayer *s_text_layer;
+
+static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
+  text_layer_set_text(s_text_layer, "Select");
+}
+
+static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
+  text_layer_set_text(s_text_layer, "Up");
+}
+
+static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
+  text_layer_set_text(s_text_layer, "Down");
+}
+
+static void click_config_provider(void *context) {
+  window_single_click_subscribe(BUTTON_ID_SELECT, select_click_handler);
+  window_single_click_subscribe(BUTTON_ID_UP, up_click_handler);
+  window_single_click_subscribe(BUTTON_ID_DOWN, down_click_handler);
+}
+
+static void main_window_load(Window *window) {
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_bounds(window_layer);
+
+  s_text_layer = text_layer_create(GRect(0, 72, bounds.size.w, 20));
+  text_layer_set_text(s_text_layer, "Press a button");
+  text_layer_set_text_alignment(s_text_layer, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_text_layer));
+}
+
+static void main_window_unload(Window *window) {
+  text_layer_destroy(s_text_layer);
+}
+
+static void init(void) {
+  s_main_window = window_create();
+  window_set_click_config_provider(s_main_window, click_config_provider);
+  window_set_window_handlers(s_main_window, (WindowHandlers) {
+    .load = main_window_load,
+    .unload = main_window_unload,
+  });
+  window_stack_push(s_main_window, true);
+}
+
+static void deinit(void) {
+  window_destroy(s_main_window);
+}
+
+int main(void) {
+  init();
+  app_event_loop();
+  deinit();
+}
+"""
+
 
 @require_safe
 @login_required
@@ -182,7 +241,10 @@ def create_project(request):
                 sdk_version=sdk_version,
                 app_keys=app_keys
             )
-            if template_id is not None and template_id != 0:
+            if project_type == 'native' and template_id == -1:
+                f = SourceFile.objects.create(project=project, file_name="main.c")
+                f.save_text(NATIVE_DEFAULT_TEMPLATE)
+            elif template_id is not None and template_id != 0:
                 template = TemplateProject.objects.get(pk=template_id)
                 template_name = template.name
                 template.copy_into_project(project)
@@ -192,7 +254,6 @@ def create_project(request):
             elif project_type == 'pebblejs':
                 f = SourceFile.objects.create(project=project, file_name="app.js")
                 f.save_text(open('{}/src/js/app.js'.format(settings.PEBBLEJS_ROOT)).read())
-            # TODO: Default file for Rocky?
             project.full_clean()
             project.save()
     except IntegrityError as e:

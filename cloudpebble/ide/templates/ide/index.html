@@ -1,5 +1,5 @@
 {% extends 'common/base-narrow.html' %}
-{% load staticfiles %}
+{% load static %}
 {% load i18n %}
 
 {% block head %}
@@ -99,6 +99,7 @@
                 <label class="control-label" for="project-template">{% trans "Template" %}</label>
                 <div class="controls">
                     <select id="project-template">
+                        <option value="-1" selected>{% trans "Default app" %}</option>
                         <option value="0">{% trans "Empty project" %}</option>
                         {% if sdk_templates %}
                         <optgroup label="{% trans "Standard Templates" %}">

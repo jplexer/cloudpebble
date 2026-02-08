@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
 
 from ide.models.meta import IdeModel
@@ -10,7 +10,7 @@ __author__ = 'katharine'
 
 
 class UserSettings(IdeModel):
-    user = models.OneToOneField(User, primary_key=True)
+    user = models.OneToOneField(User, primary_key=True, on_delete=models.CASCADE)
 
     AUTOCOMPLETE_ALWAYS = 1
     AUTOCOMPLETE_EXPLICIT = 2
@@ -63,7 +63,7 @@ User.settings = property(lambda self: UserSettings.objects.get_or_create(user=se
 
 
 class UserGithub(IdeModel):
-    user = models.OneToOneField(User, primary_key=True, related_name='github')
+    user = models.OneToOneField(User, primary_key=True, related_name='github', on_delete=models.CASCADE)
     token = models.CharField(max_length=50, null=True, blank=True)
     nonce = models.CharField(max_length=36, null=True, blank=True)
     username = models.CharField(max_length=50, null=True, blank=True)

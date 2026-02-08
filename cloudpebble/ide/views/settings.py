@@ -1,6 +1,7 @@
 import base64
 import urllib
-import urllib2
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 import uuid
 import json
 from django.conf import settings
@@ -81,8 +82,8 @@ def complete_github_auth(request):
         'client_secret': settings.GITHUB_CLIENT_SECRET,
         'code': code
     })
-    r = urllib2.Request('https://github.com/login/oauth/access_token', params, headers={'Accept': 'application/json'})
-    result = json.loads(urllib2.urlopen(r).read())
+    r = Request('https://github.com/login/oauth/access_token', params, headers={'Accept': 'application/json'})
+    result = json.loads(urlopen(r).read())
     user_github = request.user.github
     user_github.token = result['access_token']
     user_github.nonce = None
@@ -90,11 +91,11 @@ def complete_github_auth(request):
     auth_string = base64.encodestring('%s:%s' %
                                       (settings.GITHUB_CLIENT_ID, settings.GITHUB_CLIENT_SECRET)).replace('\n', '')
 
-    r = urllib2.Request('https://api.github.com/applications/%s/tokens/%s' %
+    r = Request('https://api.github.com/applications/%s/tokens/%s' %
                         (settings.GITHUB_CLIENT_ID, user_github.token))
 
     r.add_header("Authorization", "Basic %s" % auth_string)
-    result = json.loads(urllib2.urlopen(r).read())
+    result = json.loads(urlopen(r).read())
     user_github.username = result['user']['login']
     user_github.avatar = result['user']['avatar_url']
 

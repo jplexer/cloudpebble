@@ -1,14 +1,23 @@
 import logging
-import mailchimp
 
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-mailchimp_default_list_id = settings.MAILCHIMP_LIST_ID
+try:
+    import mailchimp
+    MAILCHIMP_AVAILABLE = True
+except ImportError:
+    MAILCHIMP_AVAILABLE = False
+    logger.warning("mailchimp module not available - mailing list integration disabled")
+
+mailchimp_default_list_id = getattr(settings, 'MAILCHIMP_LIST_ID', None)
 
 
 def add_user(user, mailing_list_id=None):
+    if not MAILCHIMP_AVAILABLE:
+        return
+        
     try:
         mailchimp_api = mailchimp.Mailchimp(apikey=settings.MAILCHIMP_API_KEY)
     except mailchimp.Error:

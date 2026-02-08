@@ -1,63 +1,76 @@
-FROM python:2.7
-MAINTAINER Katharine Berry <katharine@pebble.com>
+FROM python:3.11-slim-bookworm
+LABEL maintainer="CloudPebble Contributors"
 
-ENV NPM_CONFIG_LOGLEVEL=info NODE_VERSION=16.20.2 DJANGO_VERSION=1.6 NODEJS_CHECK_SIGNATURES=no
-
-# Fix for Debian Buster EOL - switch to archive repos
-RUN sed -i -e 's/deb.debian.org/archive.debian.org/g' \
-           -e 's/security.debian.org/archive.debian.org/g' \
-           -e '/buster-updates/d' \
-    /etc/apt/sources.list
+ENV NPM_CONFIG_LOGLEVEL=info NODE_VERSION=20.11.0 DJANGO_VERSION=4.2 NODEJS_CHECK_SIGNATURES=no
 
 # Node stuff.
-RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
-  && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
-  && grep " node-v$NODE_VERSION-linux-x64.tar.gz\$" SHASUMS256.txt.asc | sha256sum -c - \
-  && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
-  && rm "node-v$NODE_VERSION-linux-x64.tar.gz" SHASUMS256.txt.asc
+RUN apt-get update && apt-get install -y curl && \
+  curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" && \
+  curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" && \
+  grep " node-v$NODE_VERSION-linux-x64.tar.gz\$" SHASUMS256.txt.asc | sha256sum -c - && \
+  tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 && \
+  rm "node-v$NODE_VERSION-linux-x64.tar.gz" SHASUMS256.txt.asc
 
 RUN npm install -g jshint@2.13.6
 
-# Django stuff
-
+# Django stuff + emulator dependencies
 RUN apt-get update && apt-get install -y \
     gettext \
     postgresql-client libpq-dev \
+    gcc \
+    make \
+    bzip2 \
+    git \
+    libc6-dev \
+    libsdl1.2debian \
+    libfdt1 \
   --no-install-recommends && rm -rf /var/lib/apt/lists/*
-
-RUN pip install psycopg2 django=="$DJANGO_VERSION"
 
 EXPOSE 8000
 
 # CloudPebble stuff
 RUN npm install -g bower@1.8.14 && echo '{"allow_root": true}' > ~/.bowerrc
 
-# Grab the toolchain
-RUN curl -o /tmp/arm-cs-tools.tar https://cloudpebble-vagrant.s3.amazonaws.com/arm-cs-tools-stripped.tar && \
-  tar -xf /tmp/arm-cs-tools.tar -C / && rm /tmp/arm-cs-tools.tar
+# Install uv for Python package management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Install pebble-tool via uv
+RUN uv tool install pebble-tool --python 3.11
+
+# Ensure pebble is in PATH
+ENV PATH="/root/.local/share/uv/tools/pebble-tool/bin:$PATH"
+
+# Install the Pebble SDK (this downloads SDK + toolchain + QEMU)
+RUN pebble sdk install latest
+
+# Set up SDK paths for CloudPebble
+ENV PEBBLE_SDK_PATH=/root/.pebble-sdk
+ENV PATH="${PEBBLE_SDK_PATH}/SDKs/current/toolchain/arm-none-eabi/bin:$PATH"
 
 ADD requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
-
-ENV SDK_THREE_CHANNEL=beta
-ENV SDK_THREE_VERSION=4.3
-
-# Install SDK 3
-RUN mkdir /sdk3 && \
-  curl -L "https://github.com/aveao/PebbleArchive/raw/master/SDKCores/sdk-core-$SDK_THREE_VERSION.tar.bz2" | \
-  tar --strip-components=1 -xj -C /sdk3
-
-# Install SDK 3 Node dependencies
-RUN cd /sdk3 && npm install
-ENV WAF_NODE_PATH=/sdk3/node_modules
+# Use Python 3.11 from the base image directly
+RUN /usr/local/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY . /code
 WORKDIR /code
 
-# Bower is awful.
-RUN rm -rf bower_components && cd /tmp && python /code/manage.py bower install && mv bower_components /code/
+# Bower is awful. Run bower directly instead of Django management command
+RUN rm -rf bower_components && \
+  bower install --allow-root \
+    "https://github.com/krisk/Fuse.git#2ec2f2c40059e135cabf2b01c8c3f96f808b8809" \
+    "jquery#~2.1.3" \
+    "underscore" \
+    "backbone" \
+    "text-encoding" \
+    "jshint/jshint" \
+    "html.sortable#~0.3.1" \
+    "alexgorbatchev/jquery-textext" \
+    "codemirror#4.2.0" \
+    "bluebird#3.3.4" \
+    "kanaka/noVNC#v0.5"
 
-RUN python manage.py compilemessages
+RUN /usr/local/bin/python manage.py compilemessages
 
 RUN make -C /code/c-preload
 

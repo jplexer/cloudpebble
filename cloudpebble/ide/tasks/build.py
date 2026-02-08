@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import zipfile
 
-from celery import task
+from celery import shared_task
 from django.conf import settings
 from django.utils.timezone import now
 
@@ -41,8 +41,6 @@ def save_debug_info(base_dir, build_result, kind, platform, elf_file):
 
 def store_size_info(project, build_result, platform, zip_file):
     platform_dir = platform + '/'
-    if platform == 'aplite' and project.sdk_version == '2':
-        platform_dir = ''
     try:
         build_size = BuildSize.objects.create(
             build=build_result,
@@ -59,7 +57,7 @@ def store_size_info(project, build_result, platform, zip_file):
         pass
 
 
-@task(ignore_result=True, acks_late=True)
+@shared_task(ignore_result=True, acks_late=True)
 def run_compile(build_result):
     build_result = BuildResult.objects.get(pk=build_result)
     project = build_result.project
@@ -72,7 +70,7 @@ def run_compile(build_result):
         # Build the thing
         cwd = os.getcwd()
         success = False
-        output = ''
+        output = b''  # Use bytes for subprocess output
         build_start_time = now()
 
         try:
@@ -80,13 +78,11 @@ def run_compile(build_result):
 
             environ = os.environ.copy()
             environ.update({
-                #'LD_PRELOAD': settings.C_PRELOAD_ROOT + 'libpreload.so',
                 'ALLOWED_FOR_CREATE': '/tmp',
                 'ALLOWED_FOR_READ': '/usr/local/include:/usr/include:/usr/lib:/lib:/lib64:/tmp' \
                                     ':/dev/urandom:/proc/self:/proc/self/maps:/proc/mounts' \
-                                    ':/app/.heroku:/app/sdk2:/app/sdk3:/app/arm-cs-tools',
-                'PATH': '{}:{}'.format(settings.ARM_CS_TOOLS, environ['PATH']),
-                'HOME': '/app'
+                                    ':/root/.pebble-sdk:/root/.local',
+                'HOME': '/root'
             })
 
             # Install dependencies if there are any
@@ -100,15 +96,10 @@ def run_compile(build_result):
                 output = subprocess.check_output(npm_command, stderr=subprocess.STDOUT, preexec_fn=_set_resource_limits, env=environ)
                 subprocess.check_output([settings.NPM_BINARY, "dedupe"], stderr=subprocess.STDOUT, preexec_fn=_set_resource_limits, env=environ)
 
-            if project.sdk_version == '2':
-                command = [settings.SDK2_PEBBLE_WAF, "configure", "build"]
-            elif project.sdk_version == '3':
-                if settings.WAF_NODE_PATH:
-                    environ['NODE_PATH'] = settings.WAF_NODE_PATH
-                command = [settings.SDK3_PEBBLE_WAF, "configure", "build"]
-            else:
-                raise Exception("invalid sdk version.")
-
+            # Use pebble-tool for all SDK versions
+            # pebble build handles both configure and build internally
+            command = ["pebble", "build"]
+            
             output += subprocess.check_output(command, stderr=subprocess.STDOUT, preexec_fn=_set_resource_limits,
                                               env=environ)
         except subprocess.CalledProcessError as e:
@@ -147,13 +138,9 @@ def run_compile(build_result):
                         logger.warning("Couldn't extract filesizes: %s", e)
 
                     # Try pulling out debug information.
-                    if project.sdk_version == '2':
-                        save_debug_info(base_dir, build_result, BuildResult.DEBUG_APP, 'aplite', os.path.join(base_dir, 'build', 'pebble-app.elf'))
-                        save_debug_info(base_dir, build_result, BuildResult.DEBUG_WORKER, 'aplite', os.path.join(base_dir, 'build', 'pebble-worker.elf'))
-                    else:
-                        for platform in ['aplite', 'basalt', 'chalk', 'diorite', 'emery']:
-                            save_debug_info(base_dir, build_result, BuildResult.DEBUG_APP, platform, os.path.join(base_dir, 'build', '%s/pebble-app.elf' % platform))
-                            save_debug_info(base_dir, build_result, BuildResult.DEBUG_WORKER, platform, os.path.join(base_dir, 'build', '%s/pebble-worker.elf' % platform))
+                    for platform in ['aplite', 'basalt', 'chalk', 'diorite', 'emery']:
+                        save_debug_info(base_dir, build_result, BuildResult.DEBUG_APP, platform, os.path.join(base_dir, 'build', '%s/pebble-app.elf' % platform))
+                        save_debug_info(base_dir, build_result, BuildResult.DEBUG_WORKER, platform, os.path.join(base_dir, 'build', '%s/pebble-worker.elf' % platform))
 
                     build_result.save_pbw(temp_file)
                 else:
@@ -161,6 +148,9 @@ def run_compile(build_result):
                     archive = shutil.make_archive(os.path.join(base_dir, "package"), 'gztar', base_dir)
                     build_result.save_package(archive)
 
+            # Decode bytes to string for saving
+            if isinstance(output, bytes):
+                output = output.decode('utf-8', errors='replace')
             build_result.save_build_log(output or 'Failed to get output')
             build_result.state = BuildResult.STATE_SUCCEEDED if success else BuildResult.STATE_FAILED
             build_result.finished = now()

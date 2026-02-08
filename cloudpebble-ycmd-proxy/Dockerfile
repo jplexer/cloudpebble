@@ -1,42 +1,51 @@
-FROM python:2.7
-MAINTAINER Katharine Berry <katharine@pebble.com>
+FROM python:3.11-slim-bookworm AS ycmd-builder
 
-# Fix for Debian Buster EOL - switch to archive repos
-RUN sed -i -e 's/deb.debian.org/archive.debian.org/g' \
-           -e 's/security.debian.org/archive.debian.org/g' \
-           -e '/buster-updates/d' \
-    /etc/apt/sources.list
+# Build dependencies for ycmd with clang-completer
+RUN apt-get update && apt-get install -y \
+  cmake build-essential libncurses-dev git \
+  && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y cmake libncurses5
-
-# ycmd
-RUN git clone https://github.com/Valloric/ycmd.git /ycmd && cd /ycmd && \
-  git reset --hard 10c456c6e32487c2b75b9ee754a1f6cc6bf38a4f && \
+# Clone and build ycmd (ycm-core fork, Python 3 compatible)
+RUN git clone https://github.com/ycm-core/ycmd.git /ycmd && \
+  cd /ycmd && \
+  git reset --hard 6297cad7dfffd2a117275b4fe8a867581b4ab236 && \
   git submodule update --init --recursive && \
-  python build.py --clang-completer
+  python3 build.py --clang-completer --force-sudo
 
-# Grab the toolchain
+# --- Runtime stage ---
+FROM python:3.11-slim-bookworm
+
+# Runtime deps
+RUN apt-get update && apt-get install -y \
+  libncurses6 curl git bzip2 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy built ycmd from builder
+COPY --from=ycmd-builder /ycmd /ycmd
+
+# Grab the ARM toolchain (for stdlib headers used by completions)
 RUN curl -o /tmp/arm-cs-tools.tar https://cloudpebble-vagrant.s3.amazonaws.com/arm-cs-tools-stripped.tar && \
   tar -xf /tmp/arm-cs-tools.tar -C / && rm /tmp/arm-cs-tools.tar
 
-# Node stuff - skip GPG verification for ancient Node 4.x
-ENV NODE_VERSION=4.4.5 NPM_CONFIG_LOGLEVEL=info
-
+# Node.js 16.x (for pebble npm dependencies)
+ENV NODE_VERSION=16.20.2 NPM_CONFIG_LOGLEVEL=info
 RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
-  && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
-  && grep " node-v$NODE_VERSION-linux-x64.tar.gz\$" SHASUMS256.txt.asc | sha256sum -c - \
   && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
-  && rm "node-v$NODE_VERSION-linux-x64.tar.gz" SHASUMS256.txt.asc
+  && rm "node-v$NODE_VERSION-linux-x64.tar.gz"
 
+# Pebble SDK 4.3 (for include headers only)
 ENV SDK_THREE_VERSION=4.3
-
-# Install SDK 3
 RUN mkdir /sdk3 && \
   curl -L "https://github.com/aveao/PebbleArchive/raw/master/SDKCores/sdk-core-$SDK_THREE_VERSION.tar.bz2" | \
   tar --strip-components=1 -xj -C /sdk3
 
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Python dependencies
 ADD requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN uv pip install --system -r /tmp/requirements.txt
 
 COPY . /code
 WORKDIR /code
@@ -48,4 +57,5 @@ ENV PATH="$PATH:/arm-cs-tools/bin" YCMD_PEBBLE_SDK3=/sdk3/ \
 
 ENV PATH="$PATH:/ycmd"
 
+EXPOSE 80
 CMD ["python", "proxy.py"]

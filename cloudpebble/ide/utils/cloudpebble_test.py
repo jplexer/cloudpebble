@@ -138,7 +138,7 @@ def build_bundle(spec):
     """
     bundle = BytesIO()
     with ZipFile(bundle, 'w') as zipf:
-        for name, contents in spec.iteritems():
+        for name, contents in spec.items():
             zipf.writestr(name, contents)
     bundle.seek(0)
     return bundle.read()

@@ -6,7 +6,7 @@ from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST, require_safe
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from ide.models.project import Project
 from ide.models.files import SourceFile
 from utils.td_helper import send_td_event
@@ -56,6 +56,9 @@ def load_source_file(request, project_id, file_id):
     source_file = get_object_or_404(SourceFile, pk=file_id, project=project)
 
     content = source_file.get_contents()
+    # Ensure content is a string for JSON serialization
+    if isinstance(content, bytes):
+        content = content.decode('utf-8')
 
     try:
         folded_lines = json.loads(source_file.folded_lines)

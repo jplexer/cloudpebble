@@ -2,7 +2,7 @@ import logging
 import abc
 import json
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 __author__ = 'katharine'
 
