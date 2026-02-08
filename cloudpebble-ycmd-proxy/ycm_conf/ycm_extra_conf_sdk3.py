@@ -135,5 +135,74 @@ elif os.environ['PLATFORM'] == 'diorite':
             'do_cache': True,
         }}
 
+elif os.environ['PLATFORM'] == 'gabbro':
+    def FlagsForFile(filename, **kwargs):
+        return {{
+            'flags': [
+                '-std=c11',
+                '-x',
+                'c',
+                '-Wall',
+                '-Wextra',
+                '-Werror',
+                '-Wno-unused-parameter',
+                '-Wno-error=unused-function',
+                '-Wno-error=unused-variable',
+                '-I{sdk}/pebble/gabbro/include',
+                '-I{here}/build',
+                '-I{here}',
+                '-I{here}/build/src',
+                '-I{here}/src',
+                '-I{here}/libraries/include',
+                '-isystem',
+                '{stdlib}',
+                '-DRELEASE',
+                '-DPBL_PLATFORM_GABBRO',
+                '-DPBL_COLOR',
+                '-DPBL_SDK_3',
+                '-DPBL_ROUND',
+                '-DPBL_COMPASS',
+                '-DPBL_HEALTH',
+                '-DPBL_SMARTSTRAP',
+                '-DPBL_SMARTSTRAP_POWER',
+                '-DPBL_MICROPHONE',
+                '-D_TIME_H_',
+            ],
+            'do_cache': True,
+        }}
+elif os.environ['PLATFORM'] == 'flint':
+    def FlagsForFile(filename, **kwargs):
+        return {{
+            'flags': [
+                '-std=c11',
+                '-x',
+                'c',
+                '-Wall',
+                '-Wextra',
+                '-Werror',
+                '-Wno-unused-parameter',
+                '-Wno-error=unused-function',
+                '-Wno-error=unused-variable',
+                '-I{sdk}/pebble/flint/include',
+                '-I{here}/build',
+                '-I{here}',
+                '-I{here}/build/src',
+                '-I{here}/src',
+                '-I{here}/libraries/include',
+                '-isystem',
+                '{stdlib}',
+                '-DRELEASE',
+                '-DPBL_PLATFORM_FLINT',
+                '-DPBL_BW',
+                '-DPBL_SDK_3',
+                '-DPBL_RECT',
+                '-DPBL_HEALTH',
+                '-DPBL_SMARTSTRAP',
+                '-DPBL_MICROPHONE',
+                '-D_TIME_H_',
+            ],
+            'do_cache': True,
+        }}
+
 else:
     raise Exception("Need a platform.")

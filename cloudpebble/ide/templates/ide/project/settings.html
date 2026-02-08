@@ -59,6 +59,16 @@
                     </span>
                 </div>
             </div>
+            <div class="control-group">
+                {# Translators: "Gabbro" is a platform name and should be left untranslated. #}
+                <label class="control-label" for="settings-build-gabbro">{% trans 'Build Gabbro' %}</label>
+                <div class="controls">
+                    <input type="checkbox" id="settings-build-gabbro" {% if not project.app_platforms or 'gabbro' in project.app_platform_list %}checked{% endif %}>
+                    <span class="help-block">
+                        {% trans "If enabled, your app will be built to run on Gabbro round watches." %}
+                    </span>
+                </div>
+            </div>
             <div class="control-group not-pebblejs">
                 {# Translators: "Diorite" is a platform name and should be left untranslated. #}
                 <label class="control-label" for="settings-build-diorite">{% trans 'Build Diorite' %}</label>
@@ -76,6 +86,16 @@
                     <input type="checkbox" id="settings-build-emery" {% if not project.app_platforms or 'emery' in project.app_platform_list %}checked{% endif %}>
                     <span class="help-block">
                         {% trans "If enabled, your app will be built to run on Pebble Time 2 watches." %}
+                    </span>
+                </div>
+            </div>
+            <div class="control-group not-pebblejs">
+                {# Translators: "Flint" is a platform name and should be left untranslated. #}
+                <label class="control-label" for="settings-build-flint">{% trans 'Build Flint' %}</label>
+                <div class="controls">
+                    <input type="checkbox" id="settings-build-flint" {% if not project.app_platforms or 'flint' in project.app_platform_list %}checked{% endif %}>
+                    <span class="help-block">
+                        {% trans "If enabled, your app will be built to run on Flint watches." %}
                     </span>
                 </div>
             </div>

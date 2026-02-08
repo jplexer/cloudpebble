@@ -131,14 +131,14 @@ def run_compile(build_result):
                         build_result.total_size = s.st_size
                         # Now peek into the zip to see the component parts
                         with zipfile.ZipFile(temp_file, 'r') as z:
-                            for platform in ['aplite', 'basalt', 'chalk', 'diorite', 'emery']:
+                            for platform in ['aplite', 'basalt', 'chalk', 'diorite', 'emery', 'gabbro', 'flint']:
                                 store_size_info(project, build_result, platform, z)
 
                     except Exception as e:
                         logger.warning("Couldn't extract filesizes: %s", e)
 
                     # Try pulling out debug information.
-                    for platform in ['aplite', 'basalt', 'chalk', 'diorite', 'emery']:
+                    for platform in ['aplite', 'basalt', 'chalk', 'diorite', 'emery', 'gabbro', 'flint']:
                         save_debug_info(base_dir, build_result, BuildResult.DEBUG_APP, platform, os.path.join(base_dir, 'build', '%s/pebble-app.elf' % platform))
                         save_debug_info(base_dir, build_result, BuildResult.DEBUG_WORKER, platform, os.path.join(base_dir, 'build', '%s/pebble-worker.elf' % platform))
 

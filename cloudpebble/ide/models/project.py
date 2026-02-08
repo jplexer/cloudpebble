@@ -199,9 +199,9 @@ class Project(IdeModel):
     def supported_platforms(self):
         supported_platforms = ["aplite"]
         if self.sdk_version != '2':
-            supported_platforms.extend(["basalt", "chalk"])
+            supported_platforms.extend(["basalt", "chalk", "gabbro"])
             if self.project_type != 'pebblejs':
-                supported_platforms.extend(["diorite", "emery"])
+                supported_platforms.extend(["diorite", "emery", "flint"])
         return supported_platforms
 
     @property

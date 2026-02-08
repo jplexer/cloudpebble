@@ -160,9 +160,21 @@ class Emulator(object):
             ])
         elif self.platform == 'emery':
             qemu_args.extend([
-                "-machine", "pebble-robert-bb",
+                "-machine", "pebble-snowy-emery-bb",
                 "-pflash", self.spi_image.name,
                 "-cpu", "cortex-m4",
+            ])
+        elif self.platform == 'gabbro':
+            qemu_args.extend([
+                "-machine", "pebble-spalding-gabbro-bb",
+                "-pflash", self.spi_image.name,
+                "-cpu", "cortex-m4",
+            ])
+        elif self.platform == 'flint':
+            qemu_args.extend([
+                "-machine", "pebble-silk-bb",
+                "-cpu", "cortex-m4",
+                "-mtdblock", self.spi_image.name,
             ])
         self.qemu = subprocess.Popen(qemu_args, cwd=settings.QEMU_DIR, stdout=None, stdin=subprocess.PIPE, stderr=None)
         self.qemu.stdin.write(b"change vnc password\n")

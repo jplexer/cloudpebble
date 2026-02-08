@@ -114,6 +114,10 @@ class ResourceVariant(S3File):
     VARIANT_180H = 18
     VARIANT_200W = 19
     VARIANT_228H = 20
+    VARIANT_GABBRO = 21
+    VARIANT_FLINT = 22
+    VARIANT_260W = 23
+    VARIANT_260H = 24
 
     VARIANT_STRINGS = {
         VARIANT_MONOCHROME: '~bw',
@@ -136,6 +140,10 @@ class ResourceVariant(S3File):
         VARIANT_180H: '~180h',
         VARIANT_200W: '~200w',
         VARIANT_228H: '~228h',
+        VARIANT_GABBRO: '~gabbro',
+        VARIANT_FLINT: '~flint',
+        VARIANT_260W: '~260w',
+        VARIANT_260H: '~260h',
     }
 
     TAGS_DEFAULT = ""

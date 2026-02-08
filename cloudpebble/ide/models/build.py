@@ -37,6 +37,8 @@ class BuildResult(IdeModel):
         'chalk': ('chalk_debug_info.json', 'chalk_worker_debug_info.json'),
         'diorite': ('diorite_debug_info.json', 'diorite_worker_debug_info.json'),
         'emery': ('emery_debug_info.json', 'emery_worker_debug_info.json'),
+        'gabbro': ('gabbro_debug_info.json', 'gabbro_worker_debug_info.json'),
+        'flint': ('flint_debug_info.json', 'flint_worker_debug_info.json'),
     }
     DEBUG_APP = 0
     DEBUG_WORKER = 1

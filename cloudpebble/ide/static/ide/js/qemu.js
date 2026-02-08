@@ -115,6 +115,12 @@
                         case 'emery':
                             mRFB.get_display().resize(200, 228);
                             break;
+                        case 'gabbro':
+                            mRFB.get_display().resize(260, 260);
+                            break;
+                        case 'flint':
+                            mRFB.get_display().resize(144, 168);
+                            break;
                     }
                 }
                 if (mConnected && state == 'disconnected') {

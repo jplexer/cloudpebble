@@ -62,6 +62,8 @@ CloudPebble.Settings = (function() {
             var build_chalk = pane.find('#settings-build-chalk:visible').prop('checked');
             var build_diorite = pane.find('#settings-build-diorite:visible').prop('checked');
             var build_emery = pane.find('#settings-build-emery:visible').prop('checked');
+            var build_gabbro = pane.find('#settings-build-gabbro:visible').prop('checked');
+            var build_flint = pane.find('#settings-build-flint:visible').prop('checked');
 
             var app_keys = (app_key_array_style ? [] : {});
             var app_key_names = [];
@@ -123,7 +125,7 @@ CloudPebble.Settings = (function() {
             }
 
 
-            if(sdk_version == '3' && !(build_aplite || build_basalt || build_chalk || build_diorite || build_emery)) {
+            if(sdk_version == '3' && !(build_aplite || build_basalt || build_chalk || build_diorite || build_emery || build_gabbro || build_flint)) {
                 throw new Error(gettext("You must build your app for at least one platform."));
             }
 
@@ -142,6 +144,12 @@ CloudPebble.Settings = (function() {
             }
             if(build_emery) {
                 target_platforms.push('emery');
+            }
+            if(build_gabbro) {
+                target_platforms.push('gabbro');
+            }
+            if(build_flint) {
+                target_platforms.push('flint');
             }
             var app_platforms = target_platforms.join(',');
             

@@ -10,7 +10,9 @@ var ConnectionType = {
     QemuBasalt: 10,
     QemuChalk: 18,
     QemuDiorite: 34,
-    QemuEmery: 66
+    QemuEmery: 66,
+    QemuGabbro: 130,
+    QemuFlint: 258
 };
 
 var ConnectionPlatformNames = {
@@ -19,7 +21,9 @@ var ConnectionPlatformNames = {
     10: 'basalt',
     18: 'chalk',
     34: 'diorite',
-    66: 'emery'
+    66: 'emery',
+    130: 'gabbro',
+    258: 'flint'
 };
 
 var SharedPebble = new (function() {
@@ -49,7 +53,8 @@ var SharedPebble = new (function() {
     ];
 
     function isRound(kind) {
-        return ((kind & ConnectionType.QemuChalk) == ConnectionType.QemuChalk);
+        return ((kind & ConnectionType.QemuChalk) == ConnectionType.QemuChalk) ||
+               ((kind & ConnectionType.QemuGabbro) == ConnectionType.QemuGabbro);
     }
 
     function isRobert(kind) {

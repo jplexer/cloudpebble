@@ -34,6 +34,8 @@ def launch_emulator(request):
         'chalk': '3.0',
         'diorite': '3.0',
         'emery': '3.0',
+        'gabbro': '3.0',
+        'flint': '3.0',
     }
     version = versions[platform]
     redis_key = 'qemu-user-%s-%s' % (user_id, platform)

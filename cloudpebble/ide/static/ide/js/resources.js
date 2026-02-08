@@ -22,28 +22,36 @@ CloudPebble.Resources = (function() {
     var TAG_180H = 18;
     var TAG_200W = 19;
     var TAG_228H = 20;
+    var TAG_GABBRO = 21;
+    var TAG_FLINT = 22;
+    var TAG_260W = 23;
+    var TAG_260H = 24;
 
     var TAGS = {
-        color: {name: gettext("Colour"), id: TAG_COLOUR, excludes: [TAG_MONOCHROME, TAG_APLITE, TAG_DIORITE]},
-        bw: {name: gettext("Monochrome"), id:TAG_MONOCHROME,  excludes: [TAG_COLOUR, TAG_BASALT, TAG_CHALK, TAG_EMERY, TAG_ROUND]},
-        aplite: {name: "Aplite", id: TAG_APLITE, excludes: [TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_EMERY, TAG_ROUND, TAG_COLOUR]},
-        basalt: {name: "Basalt", id: TAG_BASALT, excludes: [TAG_APLITE, TAG_CHALK, TAG_DIORITE, TAG_EMERY, TAG_ROUND, TAG_MONOCHROME]},
-        chalk: {name: "Chalk", id: TAG_CHALK, excludes: [TAG_APLITE, TAG_BASALT, TAG_DIORITE, TAG_EMERY, TAG_MONOCHROME, TAG_RECT]},
-        diorite: {name: "Diorite", id: TAG_DIORITE, excludes: [TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_EMERY, TAG_COLOUR, TAG_ROUND]},
-        emery: {name: "Emery", id: TAG_EMERY, excludes: [TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_ROUND, TAG_MONOCHROME]},
-        round: {name: gettext("Round"), id: TAG_ROUND, excludes: [TAG_RECT, TAG_MONOCHROME, TAG_APLITE, TAG_BASALT, TAG_DIORITE, TAG_EMERY]},
-        rect: {name: gettext("Rectangular"), id: TAG_RECT, excludes: [TAG_ROUND, TAG_CHALK]},
+        color: {name: gettext("Colour"), id: TAG_COLOUR, excludes: [TAG_MONOCHROME, TAG_APLITE, TAG_DIORITE, TAG_FLINT]},
+        bw: {name: gettext("Monochrome"), id:TAG_MONOCHROME,  excludes: [TAG_COLOUR, TAG_BASALT, TAG_CHALK, TAG_EMERY, TAG_GABBRO, TAG_ROUND]},
+        aplite: {name: "Aplite", id: TAG_APLITE, excludes: [TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_EMERY, TAG_GABBRO, TAG_FLINT, TAG_ROUND, TAG_COLOUR]},
+        basalt: {name: "Basalt", id: TAG_BASALT, excludes: [TAG_APLITE, TAG_CHALK, TAG_DIORITE, TAG_EMERY, TAG_GABBRO, TAG_FLINT, TAG_ROUND, TAG_MONOCHROME]},
+        chalk: {name: "Chalk", id: TAG_CHALK, excludes: [TAG_APLITE, TAG_BASALT, TAG_DIORITE, TAG_EMERY, TAG_GABBRO, TAG_FLINT, TAG_MONOCHROME, TAG_RECT]},
+        diorite: {name: "Diorite", id: TAG_DIORITE, excludes: [TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_EMERY, TAG_GABBRO, TAG_FLINT, TAG_COLOUR, TAG_ROUND]},
+        emery: {name: "Emery", id: TAG_EMERY, excludes: [TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_GABBRO, TAG_FLINT, TAG_ROUND, TAG_MONOCHROME]},
+        gabbro: {name: "Gabbro", id: TAG_GABBRO, excludes: [TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_EMERY, TAG_FLINT, TAG_MONOCHROME, TAG_RECT]},
+        flint: {name: "Flint", id: TAG_FLINT, excludes: [TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_EMERY, TAG_GABBRO, TAG_COLOUR, TAG_ROUND]},
+        round: {name: gettext("Round"), id: TAG_ROUND, excludes: [TAG_RECT, TAG_MONOCHROME, TAG_APLITE, TAG_BASALT, TAG_DIORITE, TAG_EMERY, TAG_FLINT]},
+        rect: {name: gettext("Rectangular"), id: TAG_RECT, excludes: [TAG_ROUND, TAG_CHALK, TAG_GABBRO]},
         mic: {name: gettext("Microphone"), id: TAG_MIC, excludes: [TAG_APLITE]},
         strap: {name: gettext("Smartstrap"), id: TAG_STRAP, excludes: [TAG_APLITE]},
-        strappower: {name: gettext("Smartstrap Power"), id: TAG_STRAPPOWER, excludes: [TAG_APLITE, TAG_DIORITE, TAG_MONOCHROME]},
-        compass: {name: gettext("Compass"), id: TAG_COMPASS, excludes: [TAG_DIORITE]},
+        strappower: {name: gettext("Smartstrap Power"), id: TAG_STRAPPOWER, excludes: [TAG_APLITE, TAG_DIORITE, TAG_FLINT, TAG_MONOCHROME]},
+        compass: {name: gettext("Compass"), id: TAG_COMPASS, excludes: [TAG_DIORITE, TAG_FLINT]},
         health: {name: gettext("Health"), id: TAG_HEALTH, excludes: [TAG_APLITE]},
-        '144w': {name: gettext("Width: 144 pixels"), id: TAG_144W, excludes: [TAG_180W, TAG_200W, TAG_180H, TAG_228H, TAG_CHALK, TAG_EMERY, TAG_ROUND]},
-        '168h': {name: gettext("Height: 168 pixels"), id: TAG_168H, excludes: [TAG_180W, TAG_200W, TAG_180H, TAG_228H, TAG_CHALK, TAG_EMERY, TAG_ROUND]},
-        '180w': {name: gettext("Width: 180 pixels"), id: TAG_180W, excludes: [TAG_144W, TAG_168H, TAG_200W, TAG_228H, TAG_APLITE, TAG_BASALT, TAG_DIORITE, TAG_EMERY, TAG_RECT, TAG_MONOCHROME]},
-        '180h': {name: gettext("Height: 180 pixels"), id: TAG_180H, excludes: [TAG_144W, TAG_168H, TAG_200W, TAG_228H, TAG_APLITE, TAG_BASALT, TAG_DIORITE, TAG_EMERY, TAG_RECT, TAG_MONOCHROME]},
-        '200w': {name: gettext("Width: 200 pixels"), id: TAG_200W, excludes: [TAG_144W, TAG_168H, TAG_180W, TAG_180H, TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_ROUND, TAG_MONOCHROME]},
-        '228h': {name: gettext("Height: 228 pixels"), id: TAG_228H, excludes: [TAG_144W, TAG_168H, TAG_180W, TAG_180H, TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_ROUND, TAG_MONOCHROME]}
+        '144w': {name: gettext("Width: 144 pixels"), id: TAG_144W, excludes: [TAG_180W, TAG_200W, TAG_260W, TAG_180H, TAG_228H, TAG_260H, TAG_CHALK, TAG_GABBRO, TAG_EMERY, TAG_ROUND]},
+        '168h': {name: gettext("Height: 168 pixels"), id: TAG_168H, excludes: [TAG_180W, TAG_200W, TAG_260W, TAG_180H, TAG_228H, TAG_260H, TAG_CHALK, TAG_GABBRO, TAG_EMERY, TAG_ROUND]},
+        '180w': {name: gettext("Width: 180 pixels"), id: TAG_180W, excludes: [TAG_144W, TAG_168H, TAG_200W, TAG_260W, TAG_228H, TAG_260H, TAG_APLITE, TAG_BASALT, TAG_DIORITE, TAG_FLINT, TAG_EMERY, TAG_GABBRO, TAG_RECT, TAG_MONOCHROME]},
+        '180h': {name: gettext("Height: 180 pixels"), id: TAG_180H, excludes: [TAG_144W, TAG_168H, TAG_200W, TAG_260W, TAG_228H, TAG_260H, TAG_APLITE, TAG_BASALT, TAG_DIORITE, TAG_FLINT, TAG_EMERY, TAG_GABBRO, TAG_RECT, TAG_MONOCHROME]},
+        '200w': {name: gettext("Width: 200 pixels"), id: TAG_200W, excludes: [TAG_144W, TAG_168H, TAG_180W, TAG_260W, TAG_180H, TAG_260H, TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_FLINT, TAG_GABBRO, TAG_ROUND, TAG_MONOCHROME]},
+        '228h': {name: gettext("Height: 228 pixels"), id: TAG_228H, excludes: [TAG_144W, TAG_168H, TAG_180W, TAG_260W, TAG_180H, TAG_260H, TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_FLINT, TAG_GABBRO, TAG_ROUND, TAG_MONOCHROME]},
+        '260w': {name: gettext("Width: 260 pixels"), id: TAG_260W, excludes: [TAG_144W, TAG_168H, TAG_180W, TAG_200W, TAG_180H, TAG_228H, TAG_260H, TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_FLINT, TAG_EMERY, TAG_RECT, TAG_MONOCHROME]},
+        '260h': {name: gettext("Height: 260 pixels"), id: TAG_260H, excludes: [TAG_144W, TAG_168H, TAG_180W, TAG_200W, TAG_180H, TAG_228H, TAG_260W, TAG_APLITE, TAG_BASALT, TAG_CHALK, TAG_DIORITE, TAG_FLINT, TAG_EMERY, TAG_RECT, TAG_MONOCHROME]}
     };
 
     var PLATFORMS = {
@@ -51,7 +59,9 @@ CloudPebble.Resources = (function() {
         basalt: [TAG_BASALT, TAG_COLOUR, TAG_RECT, TAG_STRAP, TAG_STRAPPOWER, TAG_COMPASS, TAG_HEALTH, TAG_MIC, TAG_144W, TAG_168H],
         chalk: [TAG_CHALK, TAG_COLOUR, TAG_ROUND, TAG_STRAP, TAG_STRAPPOWER, TAG_COMPASS, TAG_HEALTH, TAG_MIC, TAG_180W, TAG_180H],
         diorite: [TAG_DIORITE, TAG_MONOCHROME, TAG_RECT, TAG_STRAP, TAG_HEALTH, TAG_MIC, TAG_144W, TAG_168H],
-        emery: [TAG_EMERY, TAG_COLOUR, TAG_RECT, TAG_STRAP, TAG_STRAPPOWER, TAG_COMPASS, TAG_HEALTH, TAG_200W, TAG_228H]
+        emery: [TAG_EMERY, TAG_COLOUR, TAG_RECT, TAG_STRAP, TAG_STRAPPOWER, TAG_COMPASS, TAG_HEALTH, TAG_200W, TAG_228H],
+        gabbro: [TAG_GABBRO, TAG_COLOUR, TAG_ROUND, TAG_STRAP, TAG_STRAPPOWER, TAG_COMPASS, TAG_HEALTH, TAG_MIC, TAG_260W, TAG_260H],
+        flint: [TAG_FLINT, TAG_MONOCHROME, TAG_RECT, TAG_STRAP, TAG_HEALTH, TAG_MIC, TAG_144W, TAG_168H]
     };
 
     /**

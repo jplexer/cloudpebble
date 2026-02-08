@@ -161,6 +161,14 @@ CloudPebble.Compile = (function() {
             e.preventDefault();
             install_on_watch(ConnectionType.QemuEmery);
         });
+        pane.find('#install-in-qemu-gabbro-btn').click(function(e) {
+            e.preventDefault();
+            install_on_watch(ConnectionType.QemuGabbro);
+        });
+        pane.find('#install-in-qemu-flint-btn').click(function(e) {
+            e.preventDefault();
+            install_on_watch(ConnectionType.QemuFlint);
+        });
 
 
         pane.find('#show-qemu-logs-btn').click(function(e) {
@@ -313,6 +321,18 @@ CloudPebble.Compile = (function() {
                         } else {
                             pane.find('#last-compilation-size-emery').addClass('hide');
                         }
+                        if(build.sizes.gabbro) {
+                            var gabbro_size_text = format_build_size(build.sizes.gabbro, 65536, 10240, 262144);
+                            pane.find('#last-compilation-size-gabbro').removeClass('hide').find('.text').text(gabbro_size_text);
+                        } else {
+                            pane.find('#last-compilation-size-gabbro').addClass('hide');
+                        }
+                        if(build.sizes.flint) {
+                            var flint_size_text = format_build_size(build.sizes.flint, 65536, 10240, 262144);
+                            pane.find('#last-compilation-size-flint').removeClass('hide').find('.text').text(flint_size_text);
+                        } else {
+                            pane.find('#last-compilation-size-flint').addClass('hide');
+                        }
 
                     }
                     // Only enable emulator buttons for built platforms.
@@ -329,6 +349,8 @@ CloudPebble.Compile = (function() {
                 pane.find('#last-compilation-size-chalk').addClass('hide');
                 pane.find('#last-compilation-size-diorite').addClass('hide');
                 pane.find('#last-compilation-size-emery').addClass('hide');
+                pane.find('#last-compilation-size-gabbro').addClass('hide');
+                pane.find('#last-compilation-size-flint').addClass('hide');
                 pane.find('#last-compilation-app-memory').addClass('hide');
                 pane.find('#last-compilation-worker-memory').addClass('hide');
             }
@@ -579,7 +601,9 @@ CloudPebble.Compile = (function() {
                             basalt: mLastBuild.sizes.basalt,
                             chalk: mLastBuild.sizes.chalk,
                             diorite: mLastBuild.sizes.diorite,
-                            emery: mLastBuild.sizes.emery
+                            emery: mLastBuild.sizes.emery,
+                            gabbro: mLastBuild.sizes.gabbro,
+                            flint: mLastBuild.sizes.flint
                         };
                         var size = sizes[platform];
                         var install_timer = setTimeout(function() {
@@ -715,6 +739,12 @@ CloudPebble.Compile = (function() {
                             // TODO: Emery - update with new watch colour images.
                             colour = 'tintin-red';
                             break;
+                        case 'gabbro':
+                            colour = 'spalding-14mm-rose-gold';
+                            break;
+                        case 'flint':
+                            colour = 'tintin-red';
+                            break;
                     }
                 }
                 modal.find('.screenshot-holder').addClass('screenshot-holder-' + colour);
@@ -826,6 +856,12 @@ CloudPebble.Compile = (function() {
                         }
                         else if(CloudPebble.ProjectInfo.app_platforms.indexOf('emery') > -1) {
                             return ConnectionType.QemuEmery;
+                        }
+                        else if(CloudPebble.ProjectInfo.app_platforms.indexOf('gabbro') > -1) {
+                            return ConnectionType.QemuGabbro;
+                        }
+                        else if(CloudPebble.ProjectInfo.app_platforms.indexOf('flint') > -1) {
+                            return ConnectionType.QemuFlint;
                         }
                     } else {
                         return ConnectionType.QemuAplite;

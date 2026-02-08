@@ -574,6 +574,11 @@ table.kv-table .kv-remove {
     margin: 0 2px;
 }
 
+.compilation-pane .compilation-buttons.seven-buttons .btn {
+    width: 77px;
+    margin: 0 2px;
+}
+
 .compilation-pane .compilation-buttons .btn:last-child {
     margin-right: 0;
 }
@@ -1277,8 +1282,14 @@ button#add-filter {
     background-color: #c49d4f;
 }
 
-.label-emory: {
+.label-emery {
     background-color: orangered;
+}
+.label-gabbro {
+    background-color: #7B68EE;
+}
+.label-flint {
+    background-color: #8B4513;
 }
 
 .font-preview .font-tag-preview {
