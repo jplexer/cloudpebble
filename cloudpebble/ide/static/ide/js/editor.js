@@ -1013,7 +1013,7 @@ CloudPebble.Editor = (function() {
         function get_js_target(selector) {
             var target = !!selector ? prompt.find(selector + ':visible').val() : null;
             if (!target) {
-                target = _.contains(['native', 'package'], CloudPebble.ProjectInfo.type) ? 'pkjs': 'app';
+                target = _.contains(['native', 'package', 'alloy'], CloudPebble.ProjectInfo.type) ? 'pkjs': 'app';
             }
             return target;
         }
@@ -1035,6 +1035,8 @@ CloudPebble.Editor = (function() {
             file_type_picker.find('option').filter(function() {
                 return !(this.value == 'js' || this.value == 'json' || this.value == 'rocky');
             }).remove();
+        } else if(CloudPebble.ProjectInfo.type == 'alloy') {
+            file_type_picker.find('option[value=layout]').remove();
         }
 
         prompt.find('#editor-create-file-button').click(function() {
@@ -1093,6 +1095,26 @@ CloudPebble.Editor = (function() {
                         error.text(gettext("JSON files must end in .json")).show();
                     } else {
                         files = [{name: name, target: target}]
+                    }
+                })();
+            } else if(kind == 'embeddedjs') {
+                (function() {
+                    var name = prompt.find('#new-embeddedjs-file-name').val();
+                    if(!/.+\.(js|json)$/.test(name)) {
+                        error.text(gettext("Files must end in .js or .json")).show();
+                    } else if(CloudPebble.ProjectInfo.app_platforms) {
+                        var platforms = CloudPebble.ProjectInfo.app_platforms.split(',');
+                        var unsupported = _.filter(platforms, function(p) { return p != 'emery' && p != 'gabbro'; });
+                        if(unsupported.length > 0) {
+                            error.text(interpolate(
+                                gettext("Embedded JS files only support Emery and Gabbro platforms. Please remove unsupported platforms (%s) in project settings first."),
+                                [unsupported.join(', ')]
+                            )).show();
+                        } else {
+                            files = [{name: name, target: 'embeddedjs'}];
+                        }
+                    } else {
+                        error.text(gettext("Embedded JS files only support Emery and Gabbro platforms. Please set target platforms in project settings first.")).show();
                     }
                 })();
             } else if(kind == 'layout') {

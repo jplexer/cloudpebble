@@ -30,7 +30,18 @@ def npm_search(request):
         query = request.GET['q']
     except KeyError:
         return {'packages': []}
-    search = requests.get('http://node-modules.com/search.json', {'q': query}).json()
+    response = requests.get('https://registry.npmjs.org/-/v1/search', {'text': query, 'size': 20}).json()
+    search = []
+    for obj in response.get('objects', []):
+        pkg = obj.get('package', {})
+        author = pkg.get('author', {})
+        search.append({
+            'name': pkg.get('name', ''),
+            'version': pkg.get('version', ''),
+            'description': pkg.get('description', ''),
+            'keywords': pkg.get('keywords', []),
+            'author': author.get('name', '') if isinstance(author, dict) else str(author),
+        })
     data = {'packages': [filter_dict(package, PACKAGE_SPEC) for package in search]}
     send_td_event('cloudpebble_package_search', data={
         'data': {
@@ -47,10 +58,20 @@ def npm_info(request):
     query = request.GET['q']
 
     try:
-        package = requests.get('http://node-modules.com/package/%s.json' % urllib.parse.quote(query)).json()
+        raw = requests.get('https://registry.npmjs.org/%s' % urllib.parse.quote(query, safe='@')).json()
     except ValueError:
         raise Http404("Package not found")
+    if 'error' in raw:
+        raise Http404("Package not found")
 
+    author = raw.get('author', {})
+    package = {
+        'name': raw.get('name', ''),
+        'version': raw.get('dist-tags', {}).get('latest', ''),
+        'description': raw.get('description', ''),
+        'keywords': raw.get('keywords', []),
+        'author': author.get('name', '') if isinstance(author, dict) else str(author),
+    }
     data = {
         'package': filter_dict(package, PACKAGE_SPEC)
     }

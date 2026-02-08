@@ -79,6 +79,139 @@ int main(void) {
 }
 """
 
+ALLOY_C_TEMPLATE = """\
+#include <pebble.h>
+
+int main(void) {
+  Window *w = window_create();
+  window_stack_push(w, true);
+
+  moddable_createMachine(NULL);
+
+  window_destroy(w);
+}
+"""
+
+ALLOY_JS_TEMPLATE = """\
+import Poco from "commodetto/Poco";
+
+console.log("Hello, Watchface.");
+
+let render = new Poco(screen);
+
+const font = new render.Font("Bitham-Black", 30);
+const black = render.makeColor(0, 0, 0);
+const white = render.makeColor(255, 255, 255);
+
+function draw() {
+\trender.begin();
+\trender.fillRectangle(white, 0, 0, render.width, render.height);
+\t
+\tconst msg = (new Date).toTimeString().slice(0, 8);
+\tconst width = render.getTextWidth(msg, font);
+
+\trender.drawText(msg, font, black,
+\t\t(render.width - width) / 2, (render.height - font.height) / 2);
+
+\trender.end();
+}
+
+Pebble.addEventListener('secondchange', draw);
+"""
+
+ALLOY_MANIFEST_TEMPLATE = """\
+{
+ \t"include":  [
+\t\t"$(MODDABLE)/examples/manifest_mod.json"
+\t],
+\t"modules": {
+\t\t"*": "./main.js"
+\t}
+}
+"""
+
+ALLOY_ANALOG_JS_TEMPLATE = """\
+import Poco from "commodetto/Poco";
+
+const render = new Poco(screen);
+
+// Colors
+const darkGray = render.makeColor(40, 40, 40);
+const white = render.makeColor(255, 255, 255);
+const red = render.makeColor(255, 60, 60);
+const gold = render.makeColor(255, 215, 0);
+const lightBlue = render.makeColor(100, 149, 237);
+
+// Helper: Convert time fraction to radians
+function fractionToRadians(fraction) {
+    return fraction * 2 * Math.PI;
+}
+
+// Draw a clock hand from center outward
+function drawHand(cx, cy, angle, length, color, thickness) {
+    const x2 = cx + Math.sin(angle) * length;
+    const y2 = cy - Math.cos(angle) * length;
+    render.drawLine(cx, cy, x2, y2, color, thickness);
+}
+
+function draw(event) {
+    const now = event.date;
+    const hours = now.getHours() % 12;
+    const minutes = now.getMinutes();
+
+    // Calculate center and hand length
+    const cx = render.width / 2;
+    const cy = render.height / 2;
+    const maxLength = (Math.min(render.width, render.height) - 30) / 2;
+
+    render.begin();
+
+    // Dark background
+    render.fillRectangle(darkGray, 0, 0, render.width, render.height);
+
+    // Draw hour markers
+    for (let i = 0; i < 12; i++) {
+        const angle = fractionToRadians(i / 12);
+        const isMainHour = (i % 3 === 0);
+        const innerRadius = isMainHour ? maxLength - 15 : maxLength - 8;
+        const outerRadius = maxLength;
+        const color = isMainHour ? gold : white;
+        const thickness = isMainHour ? 3 : 2;
+
+        // Cache trig values to avoid redundant computation
+        const sinAngle = Math.sin(angle);
+        const cosAngle = Math.cos(angle);
+
+        const x1 = cx + sinAngle * innerRadius;
+        const y1 = cy - cosAngle * innerRadius;
+        const x2 = cx + sinAngle * outerRadius;
+        const y2 = cy - cosAngle * outerRadius;
+
+        render.drawLine(x1, y1, x2, y2, color, thickness);
+    }
+
+    // Calculate hand angles
+    const minuteFraction = minutes / 60;
+    const hourFraction = (hours + minuteFraction) / 12;
+    const minuteAngle = fractionToRadians(minuteFraction);
+    const hourAngle = fractionToRadians(hourFraction);
+
+    // Draw hands - gold hour, light blue minute
+    drawHand(cx, cy, hourAngle, maxLength * 0.5, gold, 6);
+    drawHand(cx, cy, minuteAngle, maxLength * 0.75, lightBlue, 4);
+
+    // Center dot
+    render.drawCircle(red, cx, cy, 6, 0, 360);
+    render.drawCircle(white, cx, cy, 3, 0, 360);
+
+    render.end();
+}
+
+// Update every minute
+// Time events fire immediately when registered, so no explicit startup draw is needed
+Pebble.addEventListener('minutechange', draw);
+"""
+
 
 @require_safe
 @login_required
@@ -132,7 +265,8 @@ def project_info(request, project_id):
             'auto_build': project.github_hook_build,
             'auto_pull': project.github_hook_uuid is not None
         },
-        'supported_platforms': project.supported_platforms
+        'supported_platforms': project.supported_platforms,
+        'has_embeddedjs': project.has_embeddedjs_files
     }
 
 
@@ -239,7 +373,8 @@ def create_project(request):
                 app_capabilities='',
                 project_type=project_type,
                 sdk_version=sdk_version,
-                app_keys=app_keys
+                app_keys=app_keys,
+                app_platforms='emery,gabbro' if project_type == 'alloy' else None
             )
             if project_type == 'native' and template_id == -1:
                 f = SourceFile.objects.create(project=project, file_name="main.c")
@@ -251,6 +386,18 @@ def create_project(request):
             elif project_type == 'simplyjs':
                 f = SourceFile.objects.create(project=project, file_name="app.js")
                 f.save_text(open('{}/src/html/demo.js'.format(settings.SIMPLYJS_ROOT)).read())
+            elif project_type == 'alloy':
+                alloy_template = request.POST.get('alloy_template', '0')
+                f = SourceFile.objects.create(project=project, file_name="mdbl.c", target='app')
+                f.save_text(ALLOY_C_TEMPLATE)
+                if alloy_template == '1':
+                    js_template = ALLOY_ANALOG_JS_TEMPLATE
+                else:
+                    js_template = ALLOY_JS_TEMPLATE
+                f = SourceFile.objects.create(project=project, file_name="main.js", target='embeddedjs')
+                f.save_text(js_template)
+                f = SourceFile.objects.create(project=project, file_name="manifest.json", target='embeddedjs')
+                f.save_text(ALLOY_MANIFEST_TEMPLATE)
             elif project_type == 'pebblejs':
                 f = SourceFile.objects.create(project=project, file_name="app.js")
                 f.save_text(open('{}/src/js/app.js'.format(settings.PEBBLEJS_ROOT)).read())
@@ -286,7 +433,15 @@ def save_project_settings(request, project_id):
             project.app_keys = request.POST['app_keys']
             project.app_jshint = bool(int(request.POST['app_jshint']))
             project.sdk_version = request.POST['sdk_version']
-            project.app_platforms = request.POST['app_platforms']
+            app_platforms = request.POST['app_platforms']
+            if app_platforms and project.has_embeddedjs_files:
+                unsupported = set(app_platforms.split(',')) - {'emery', 'gabbro'}
+                if unsupported:
+                    raise BadRequest(
+                        _("Projects with Embedded JS files can only target Emery and Gabbro. "
+                          "Remove unsupported platforms: %s") % ', '.join(sorted(unsupported))
+                    )
+            project.app_platforms = app_platforms
             project.app_modern_multi_js = bool(int(request.POST['app_modern_multi_js']))
 
             menu_icon = request.POST['menu_icon']

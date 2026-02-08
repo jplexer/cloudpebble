@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 
 __author__ = 'joe'
 
@@ -39,12 +39,12 @@ def filter_dict(dictionary, spec):
 
 
 def _filter_dict(dictionary, spec, strict=False):
-    if not isinstance(dictionary, collections.Mapping):
+    if not isinstance(dictionary, collections.abc.Mapping):
         if not strict:
             return dictionary
         else:
             raise ValueError('First argument must be a collections.Mappable')
-    if not isinstance(spec, collections.Mapping):
+    if not isinstance(spec, collections.abc.Mapping):
         raise ValueError('Second argument must be a collections.Mappable')
 
     out = {}
@@ -72,7 +72,7 @@ def _transform_value(out, key, dictionary, spec_value, strict):
     elif isinstance(spec_value, TransformKeyAndValue):
         result = spec_value(v)
         out[result[0]] = result[1]
-    elif isinstance(spec_value, collections.Mapping):
+    elif isinstance(spec_value, collections.abc.Mapping):
         out[key] = _filter_dict(v, spec_value, strict=strict)
     elif isinstance(spec_value, str):
         out[spec_value] = v

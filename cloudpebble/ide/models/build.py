@@ -107,7 +107,10 @@ class BuildResult(IdeModel):
             with open(self.build_log, 'r') as f:
                 return f.read()
         else:
-            return s3.read_file('builds', self.build_log)
+            data = s3.read_file('builds', self.build_log)
+            if isinstance(data, bytes):
+                data = data.decode('utf-8', errors='replace')
+            return data
 
     def save_debug_info(self, json_info, platform, kind):
         text = json.dumps(json_info)

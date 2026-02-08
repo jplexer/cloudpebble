@@ -20,10 +20,19 @@ __author__ = 'katharine'
 @json_view
 def create_source_file(request, project_id):
     project = get_object_or_404(Project, pk=project_id, owner=request.user)
+    target = request.POST.get('target', 'app')
+    if target == 'embeddedjs' and project.app_platforms:
+        unsupported = set(project.app_platform_list) - {'emery', 'gabbro'}
+        if unsupported:
+            raise BadRequest(
+                _("Embedded JS files require only Emery/Gabbro platforms. "
+                  "Please remove unsupported platforms (%s) in project settings first.")
+                % ', '.join(sorted(unsupported))
+            )
     try:
         f = SourceFile.objects.create(project=project,
                                       file_name=request.POST['name'],
-                                      target=request.POST.get('target', 'app'))
+                                      target=target)
         f.save_text(request.POST.get('content', ''))
 
     except IntegrityError as e:

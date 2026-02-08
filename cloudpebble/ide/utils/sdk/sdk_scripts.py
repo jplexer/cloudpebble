@@ -36,7 +36,7 @@ def configure(ctx):
 def build(ctx):
     if {{jshint}} and hint is not None:
         try:
-            hint([node.abspath() for node in ctx.path.ant_glob("src/pkjs/**/*.js")], _tty_out=False) # no tty because there are none in the cloudpebble sandbox.
+            hint(['--config', 'pebble-jshintrc'] + [node.abspath() for node in ctx.path.ant_glob("src/pkjs/**/*.js")], _tty_out=False) # no tty because there are none in the cloudpebble sandbox.
         except ErrorReturnCode_2 as e:
             ctx.fatal("\\nJavaScript linting failed (you can disable this in Project Settings):\\n" + e.stdout)
 
@@ -153,7 +153,7 @@ def configure(ctx):
 def build(ctx):
     if {{jshint}} and hint is not None:
         try:
-            hint([node.abspath() for node in ctx.path.ant_glob("src/**/*.js")], _tty_out=False) # no tty because there are none in the cloudpebble sandbox.
+            hint(['--config', 'pebble-jshintrc'] + [node.abspath() for node in ctx.path.ant_glob("src/**/*.js")], _tty_out=False) # no tty because there are none in the cloudpebble sandbox.
         except ErrorReturnCode_2 as e:
             ctx.fatal("\\nJavaScript linting failed (you can disable this in Project Settings):\\n" + e.stdout)
 
@@ -208,7 +208,7 @@ def configure(ctx):
 def build(ctx):
     if {{jshint}} and hint is not None:
         try:
-            hint([node.abspath() for node in ctx.path.ant_glob("src/**/*.js")], _tty_out=False) # no tty because there are none in the cloudpebble sandbox.
+            hint(['--config', 'pebble-jshintrc'] + [node.abspath() for node in ctx.path.ant_glob("src/**/*.js")], _tty_out=False) # no tty because there are none in the cloudpebble sandbox.
         except ErrorReturnCode_2 as e:
             ctx.fatal("\\nJavaScript linting failed (you can disable this in Project Settings):\\n" + e.stdout)
 
@@ -274,9 +274,72 @@ def configure(ctx):
 def build(ctx):
     if {{jshint}} and hint is not None:
         try:
-            hint([node.abspath() for node in ctx.path.ant_glob("src/**/*.js")], _tty_out=False) # no tty because there are none in the cloudpebble sandbox.
+            hint(['--config', 'pebble-jshintrc'] + [node.abspath() for node in ctx.path.ant_glob("src/**/*.js")], _tty_out=False) # no tty because there are none in the cloudpebble sandbox.
         except ErrorReturnCode_2 as e:
             ctx.fatal("\\nJavaScript linting failed (you can disable this in Project Settings):\\n" + e.stdout)
+
+    ctx.load('pebble_sdk')
+
+    build_worker = os.path.exists('worker_src')
+    binaries = []
+
+    for p in ctx.env.TARGET_PLATFORMS:
+        ctx.set_env(ctx.all_envs[p])
+        ctx.set_group(ctx.env.PLATFORM_NAME)
+        app_elf = '{}/pebble-app.elf'.format(ctx.env.BUILD_DIR)
+        ctx.pbl_program(source=ctx.path.ant_glob('src/c/**/*.c'), target=app_elf)
+
+        if build_worker:
+            worker_elf = '{}/pebble-worker.elf'.format(ctx.env.BUILD_DIR)
+            binaries.append({'platform': p, 'app_elf': app_elf, 'worker_elf': worker_elf})
+            ctx.pbl_worker(source=ctx.path.ant_glob('worker_src/c/**/*.c'), target=worker_elf)
+        else:
+            binaries.append({'platform': p, 'app_elf': app_elf})
+
+    ctx.set_group('bundle')
+    ctx.pbl_bundle(binaries=binaries, js=ctx.path.ant_glob(['src/pkjs/**/*.js', 'src/pkjs/**/*.json']), js_entry_file='src/pkjs/{{pkjs_entry}}')
+"""
+    return wscript.replace('{{jshint}}', 'True' if jshint and not for_export else 'False').replace('{{pkjs_entry}}', project.pkjs_entry_point or '')
+
+
+def generate_wscript_file_alloy(project, for_export):
+    jshint = project.app_jshint
+    wscript = """#
+# This file is the default set of rules to compile a Pebble project.
+#
+# Feel free to customize this to your needs.
+#
+
+import os.path
+try:
+    from sh import CommandNotFound, jshint, cat, ErrorReturnCode_2
+    hint = jshint
+except (ImportError, Exception):
+    hint = None
+
+top = '.'
+out = 'build'
+
+
+def options(ctx):
+    ctx.load('pebble_sdk')
+
+
+def configure(ctx):
+    ctx.load('pebble_sdk')
+
+
+def build(ctx):
+    if {{jshint}} and hint is not None:
+        js_files = [node.abspath() for node in ctx.path.ant_glob("src/pkjs/**/*.js")]
+        if js_files:
+            try:
+                hint(['--config', 'pebble-jshintrc'] + js_files, _tty_out=False)
+            except ErrorReturnCode_2 as e:
+                output = e.stdout
+                if isinstance(output, bytes):
+                    output = output.decode('utf-8', errors='replace')
+                ctx.fatal("\\nJavaScript linting failed (you can disable this in Project Settings):\\n" + output)
 
     ctx.load('pebble_sdk')
 
@@ -307,6 +370,8 @@ def generate_wscript_file(project, for_export=False):
         return generate_wscript_file_package(project, for_export)
     elif project.project_type == 'rocky':
         return generate_wscript_file_rocky(project, for_export)
+    elif project.project_type == 'alloy':
+        return generate_wscript_file_alloy(project, for_export)
     elif project.sdk_version == '2':
         return generate_wscript_file_sdk2(project, for_export)
     elif project.sdk_version == '3':
@@ -387,6 +452,9 @@ def generate_jshint_file(project):
   "undef": "true",
 
   // Spot unused variables
-  "unused": "true"
+  "unused": "true",
+
+  // Enable ES6 syntax (const, let, arrow functions, etc)
+  "esversion": 6
 }
 """ % json.dumps({x: True for x in jshint_globals})

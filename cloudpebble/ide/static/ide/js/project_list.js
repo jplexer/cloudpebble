@@ -6,8 +6,24 @@ $(function() {
     $('#project-type').change(function() {
         var val = $(this).val();
         // TODO Packages - maybe still show templates? (and sdk version?)
-        if(val != 'native') {
+        if(val == 'alloy') {
+            $('#project-sdk-version').val('3');
+            $('.sdk-version').hide();
+            // Show alloy-specific template dropdown (cosmetic only; backend uses project_type)
+            $('#project-template').val(0).hide();
+            if($('#alloy-template').length === 0) {
+                $('<select id="alloy-template">' +
+                    '<option value="0" selected>' + gettext("Digital watchface") + '</option>' +
+                    '<option value="1">' + gettext("Simple analog watchface") + '</option>' +
+                  '</select>')
+                    .insertAfter('#project-template');
+            }
+            $('#alloy-template').show();
+            $('#template-holder').show();
+        } else if(val != 'native') {
             $('#project-template').val(0);
+            $('#alloy-template').hide();
+            $('#project-template').show();
             $('#template-holder').hide();
             if (_.contains(['pebblejs', 'rocky', 'package'], val)) {
                 $('#project-sdk-version').val('3');
@@ -16,6 +32,8 @@ $(function() {
             }
             $('.sdk-version').hide();
         } else {
+            $('#alloy-template').hide();
+            $('#project-template').show();
             $('#template-holder').show();
             $('.sdk-version').show();
         }
@@ -43,12 +61,16 @@ $(function() {
             return;
         }
         $('#create-project').find('input button select').attr('disabled', 'disabled');
-        Ajax.Post('/ide/project/create', {
+        var post_data = {
             name: value,
             template: $('#project-template').val(),
             type: $('#project-type').val(),
             sdk: $('#project-sdk-version').val()
-        }).then(function(data) {
+        };
+        if($('#project-type').val() == 'alloy') {
+            post_data.alloy_template = $('#alloy-template').val();
+        }
+        Ajax.Post('/ide/project/create', post_data).then(function(data) {
             window.location.href = "/ide/project/" + data.id;
         }).catch(function(error) {
             $('#project-prompt-errors').removeClass('hide').text(error.toString());

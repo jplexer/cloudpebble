@@ -270,8 +270,9 @@ class SourceFile(TextFile):
         ('worker', _('Worker')),
         ('public', _('Public Header File')),
         ('common', _('Shared JS')),
+        ('embeddedjs', _('Embedded JS')),
     )
-    target = models.CharField(max_length=10, choices=TARGETS, default='app')
+    target = models.CharField(max_length=12, choices=TARGETS, default='app')
 
     DIR_MAP = {
         # Using an OrderedDict here ensures that 'src/' is checked last in get_details_for_path().
@@ -295,7 +296,12 @@ class SourceFile(TextFile):
             'app': ['src/c'],
             'public': ['include'],
             'pkjs': ['src/js'],
-        }
+        },
+        'alloy': OrderedDict([
+            ('pkjs', ['src/pkjs']),
+            ('embeddedjs', ['src/embeddedjs']),
+            ('app', ['src/c', 'src']),
+        ])
     }
 
     @classmethod
@@ -316,7 +322,7 @@ class SourceFile(TextFile):
             break
         else:
             raise ValueError(_("Unacceptable file path for this project [%s]") % path)
-        if file_target in ('pkjs', 'common') or project_type in ('pebblejs', 'simplyjs', 'rocky'):
+        if file_target in ('pkjs', 'common', 'embeddedjs') or project_type in ('pebblejs', 'simplyjs', 'rocky'):
             expected_exts = ('.js', '.json')
         else:
             expected_exts = ('.c', '.h')

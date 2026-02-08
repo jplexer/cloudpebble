@@ -28,6 +28,7 @@ class Project(IdeModel):
         ('pebblejs', _('Pebble.js (beta)')),
         ('package', _('Pebble Package')),
         ('rocky', _('Rocky.js')),
+        ('alloy', _('Alloy (beta)')),
     )
     project_type = models.CharField(max_length=10, choices=PROJECT_TYPES, default='native')
 
@@ -197,6 +198,8 @@ class Project(IdeModel):
 
     @property
     def supported_platforms(self):
+        if self.project_type == 'alloy':
+            return ["emery", "gabbro"]
         supported_platforms = ["aplite"]
         if self.sdk_version != '2':
             supported_platforms.extend(["basalt", "chalk", "gabbro"])
@@ -205,16 +208,20 @@ class Project(IdeModel):
         return supported_platforms
 
     @property
+    def has_embeddedjs_files(self):
+        return self.source_files.filter(target='embeddedjs').exists()
+
+    @property
     def resources_path(self):
         return 'src/resources' if self.project_type == 'package' else 'resources'
 
     @property
     def is_standard_project_type(self):
-        return self.project_type in {'native', 'package', 'rocky'}
+        return self.project_type in {'native', 'package', 'rocky', 'alloy'}
 
     @property
     def pkjs_entry_point(self):
-        if self.project_type in {'package', 'rocky'}:
+        if self.project_type in {'package', 'rocky', 'alloy'}:
             return 'index.js'
         elif self.project_type == 'native' and self.app_modern_multi_js:
             if self.source_files.filter(target='pkjs', file_name='index.js').exists():
@@ -251,6 +258,13 @@ class Project(IdeModel):
                 raise ValidationError(_("RockyJS projects must use array based appmessage keys"))
             if not self.app_modern_multi_js:
                 raise ValidationError(_("RockyJS projects must use CommonJS-style JS Handling."))
+        elif self.project_type == 'alloy':
+            if is_sdk_2:
+                raise ValidationError(_("Alloy is not available for SDK 2"))
+            if not self.uses_array_message_keys:
+                raise ValidationError(_("Alloy projects must use array based appmessage keys"))
+            if not self.app_modern_multi_js:
+                raise ValidationError(_("Alloy projects must use CommonJS-style JS Handling."))
 
     last_build = property(get_last_build)
     menu_icon = property(get_menu_icon)

@@ -104,8 +104,8 @@ CloudPebble.Sidebar = (function() {
             pebblejs: ['app'],
             simplyjs: ['app'],
             'package': ['app', 'pkjs', 'public'],
-            rocky: ['app', 'pkjs', 'common']
-
+            rocky: ['app', 'pkjs', 'common'],
+            alloy: ['app', 'embeddedjs', 'pkjs']
         };
         _.each(default_sections_for_project_types[type], get_source_section)
     }
@@ -201,6 +201,9 @@ CloudPebble.Sidebar = (function() {
             }
             else {
                 $('.rocky-only').hide();
+            }
+            if(type != 'alloy') {
+                $('.alloy-only').hide();
             }
         }
     };

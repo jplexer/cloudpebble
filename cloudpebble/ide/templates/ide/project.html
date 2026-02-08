@@ -65,7 +65,7 @@
                     <li class="nav-header" id="sidebar-pane-settings"><a href="#">{% trans 'Settings' %}</a></li>
                     <li class="nav-header sdk3-only" id="sidebar-pane-timeline"><a href="#">Timeline (Preview)</a></li>
                     <li class="nav-header" id="sidebar-pane-compile"><a href="#">{% trans 'Compilation' %}</a></li>
-                    {% if project.project_type == 'package' or project.project_type == 'native' %}
+                    {% if project.project_type == 'package' or project.project_type == 'native' or project.project_type == 'alloy' %}
                         <li class="nav-header sdk3-only" id="sidebar-pane-dependencies"><a href="#">{% trans 'Dependencies' %}</a>
                             <span class="spinner spinner-dark hide"></span>
                         </li>
@@ -157,7 +157,8 @@
                 <div class="controls">
                     <select id="new-file-type">
                         <option value="c" selected>{% trans 'C file' %}</option>
-                        <option value="js">{% trans 'JavaScript file' %}</option>
+                        <option value="embeddedjs" class="alloy-only">{% trans 'Embedded JavaScript file' %}</option>
+                        <option value="js">{% trans 'PebbleKit JavaScript file' %}</option>
                         <option value="json">{% trans 'JSON file' %}</option>
                         <option value="layout">{% trans 'Window Layout' %}</option>
                     </select>
@@ -239,6 +240,14 @@
                             </select>
                             <img src="{% static 'ide/img/help.png' %}" class="field-help">
                         </div>
+                    </div>
+                </div>
+            </div>
+            <div class="embeddedjs-file-options file-group hide">
+                <div class="control-group">
+                    <label class="control-label" for="new-embeddedjs-file-name">{% trans 'Filename' %}</label>
+                    <div class="controls">
+                        <input type="text" id="new-embeddedjs-file-name" pattern="[a-zA-Z0-9_-]+\.(js|json)$">
                     </div>
                 </div>
             </div>

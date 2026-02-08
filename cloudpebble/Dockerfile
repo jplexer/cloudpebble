@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     libc6-dev \
     libsdl1.2debian \
     libfdt1 \
+    libglib2.0-0 \
   --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8000

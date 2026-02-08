@@ -23,8 +23,8 @@ CloudPebble.ProgressBar = (function() {
 CloudPebble.ProjectProperties = (function() {
     var spec = {
         'js_only': ['simplyjs', 'pebblejs', 'rocky'],
-        'is_runnable': ['native', 'pebblejs', 'simplyjs', 'rocky'],
-        'supports_message_keys': ['native', 'package'],
+        'is_runnable': ['native', 'pebblejs', 'simplyjs', 'rocky', 'alloy'],
+        'supports_message_keys': ['native', 'package', 'alloy'],
         'supports_aplite': ['native', 'package', 'simplyjs', 'pebblejs'],
         'supports_jslint': ['native', 'package', 'pebblejs', 'rocky']
     };
@@ -45,7 +45,8 @@ CloudPebble.TargetNames =   {
     'public': gettext("Public headers"),
     'pkjs': gettext("PebbleKit JS"),
     'worker': gettext("Worker source"),
-    'common': gettext("Shared JavaScript")
+    'common': gettext("Shared JavaScript"),
+    'embeddedjs': gettext("Embedded JS")
 };
 
 CloudPebble.ProjectInfo = {};

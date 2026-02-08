@@ -75,7 +75,7 @@ def generate_v3_manifest_dict(project, resources):
             },
             'messageKeys': json.loads(project.app_keys),
             'resources': generate_resource_dict(project, resources),
-            'projectType': project.project_type
+            'projectType': 'moddable' if project.project_type == 'alloy' else project.project_type
         }
     }
     if project.app_capabilities:
@@ -308,5 +308,8 @@ def load_manifest_dict(manifest, manifest_kind, default_project_type='native'):
         media_map = manifest['resources']['media']
     else:
         media_map = {}
-    project['project_type'] = manifest.get('projectType', default_project_type)
+    project_type = manifest.get('projectType', default_project_type)
+    if project_type == 'moddable':
+        project_type = 'alloy'
+    project['project_type'] = project_type
     return project, media_map, dependencies
