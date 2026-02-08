@@ -14,10 +14,11 @@ CloudPebble is a web-based IDE for developing Pebble smartwatch applications. Th
 | Build System | waf + SDK 4.3 | **pebble-tool 5.0.23 + SDK 4.9.77** | ✅ Complete |
 | Migrations | South | **Django native** | ✅ Complete |
 | Web/Celery | - | - | ✅ Tested |
-| Emulator (QEMU) | Python 2.7 | - | 🔄 Not yet updated |
+| Emulator (QEMU) | Python 2.7 | **Python 3.11 + coredevices/qemu** | ✅ Complete |
+| Default project template | Empty project | **Default app (button demo)** | ✅ Complete |
 | Code Completion (YCMD) | Python 2.7 | - | 🔄 Not yet updated |
 
-**Live demo:** https://cloudpebble-dev.exe.xyz (test with `testuser`/`testpass123`)
+**Live demo:** https://cloudpebble-og-dev.exe.xyz (test with `testuser`/`testpass123`)
 
 ## Quick Start
 
@@ -50,6 +51,41 @@ docker compose up -d
 ```
 
 The nginx container listens on port 8080. Configure your reverse proxy to forward HTTPS traffic to it.
+
+### Cloud Deployment (Production)
+
+For production at scale, CloudPebble uses a hybrid architecture: stateless services on Railway, the QEMU emulator on a Hetzner dedicated server, and managed backends.
+
+```
+Browser ──→ Railway
+              ├── Web (Django) ──→ Supabase (Postgres + Auth)
+              │                ──→ Upstash (Redis)
+              │                ──→ Cloudflare R2 (object storage)
+              ├── Celery worker ──→ same backends
+              └── ycmd proxy
+
+Browser ──→ Hetzner (direct WebSocket for VNC)
+              └── QEMU controller (Docker + nginx + TLS)
+```
+
+QEMU runs on dedicated hardware because ARM software emulation needs raw RAM (~400MB/instance), long-lived WebSocket connections, and consistent CPU — making it 3-10x cheaper on a dedicated server vs PaaS.
+
+| Service | Provider | Spec | ~Monthly Cost |
+|---------|----------|------|---------------|
+| Web (Django) | Railway | ~1 vCPU, 1GB | $30 |
+| Celery worker | Railway | ~2 vCPU, 2GB | $60 |
+| ycmd proxy | Railway | ~0.5 vCPU, 512MB | $15 |
+| QEMU controller | Hetzner AX42 | 8C/16T, 64GB DDR5 | $50 |
+| PostgreSQL + Auth | Supabase Pro | 8GB DB, 100K MAU | $25 |
+| Redis | Upstash | Pay-as-you-go | $3 |
+| Object storage | Cloudflare R2 | 500GB, zero egress | $10 |
+| **Total** | | | **~$200/mo** |
+
+**Capacity:** Supports ~1,000 developers doing 20 builds/month + 5 hrs emulator/month. The Hetzner server handles 150+ concurrent emulators (64GB / 400MB); typical peak is ~50 concurrent.
+
+**Latency:** If using a Hetzner EU server, US users see ~100ms RTT on the emulator VNC stream (acceptable for a smartwatch emulator). For lower latency, use Hetzner Cloud CCX33 in Ashburn (~$75/mo, <20ms).
+
+**Key config:** Set `QEMU_URLS` to the Hetzner server's public HTTPS endpoint. The browser connects directly to Hetzner for the VNC WebSocket stream — no traffic proxied through Railway.
 
 ### Troubleshooting
 
@@ -112,7 +148,7 @@ The nginx container listens on port 8080. Configure your reverse proxy to forwar
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │                              WEB CONTAINER (Port 80)                                 │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │  Django 1.6.2 Application                                                      │  │
+│  │  Django 4.2 Application                                                      │  │
 │  │  ├── cloudpebble/        Django project config, URLs, WSGI                     │  │
 │  │  ├── ide/                Core IDE functionality                                 │  │
 │  │  │   ├── api/            REST endpoints (JSON responses)                       │  │
@@ -138,7 +174,7 @@ The nginx container listens on port 8080. Configure your reverse proxy to forwar
 │  │  │   ├── static/         57 JS files, 8 CSS files                              │  │
 │  │  │   ├── templates/      Django HTML templates                                 │  │
 │  │  │   ├── utils/          SDK assembly, regex validation                        │  │
-│  │  │   └── migrations/     51 South database migrations                          │  │
+│  │  │   └── migrations/     Django database migrations                          │  │
 │  │  ├── auth/               Authentication (local + Pebble OAuth2)                │  │
 │  │  ├── root/               Landing page                                          │  │
 │  │  └── qr/                 QR code generation for phone pairing                  │  │
@@ -288,8 +324,8 @@ The nginx container listens on port 8080. Configure your reverse proxy to forwar
 
 ### 1. Web Container
 
-**Image:** Custom (Python 2.7.11 + Node.js 16.x)  
-**Port:** 80  
+**Image:** Custom (Python 3.11 + Node.js 16.x)
+**Port:** 80
 **Build Context:** `cloudpebble/`
 
 The main Django application serving the IDE interface and REST API.
@@ -315,16 +351,15 @@ python manage.py runserver 0.0.0.0:$PORT
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| Django | 1.6.2 | Web framework |
-| celery | 3.1.23 | Async task queue |
-| python-social-auth | 0.1.23 | OAuth2 (Pebble SSO) |
+| Django | 4.2 LTS | Web framework |
+| celery | 5.x | Async task queue |
+| social-auth-app-django | 5.x | OAuth2 |
 | boto | 2.39.0 | S3 client |
-| pygithub | 1.14.2 | GitHub API |
-| South | 1.0.2 | Database migrations |
-| redis | 2.10.5 | Celery broker client |
-| gevent | 1.1 | Async I/O |
-| Pillow | 2.9.0 | Image processing |
-| psycopg2 | 2.4.5 | PostgreSQL client |
+| pygithub | 2.x | GitHub API |
+| redis | 5.x | Celery broker client |
+| gevent | 24.x | Async I/O |
+| Pillow | 10.x | Image processing |
+| psycopg2 | 2.9.x | PostgreSQL client |
 
 #### Environment Variables
 
@@ -402,8 +437,8 @@ BROKER_POOL_LIMIT = 10
 
 ### 3. QEMU Controller
 
-**Image:** Custom (Python 2.7 + QEMU + pypkjs)  
-**Port:** 8001  
+**Image:** Custom (Python 3.11 + coredevices/qemu + pypkjs)
+**Port:** 8001
 **Build Context:** `cloudpebble-qemu-controller/`
 
 Manages Pebble emulator instances with VNC display streaming.
@@ -726,7 +761,6 @@ Benefits:
 |------------|--------|-------|
 | No Pebble SSO | Expected | Pebble's auth servers are gone; use local accounts |
 | No phone installs | Expected | Requires SSO token; use emulator |
-| Emulator | 🔄 Needs Python 3 | QEMU controller still on Python 2.7 |
 | Code completion | 🔄 Needs Python 3 | YCMD proxy still on Python 2.7 |
 
 ---
@@ -742,11 +776,12 @@ Benefits:
 - [x] Old waf SDK → pebble-tool 5.0
 - [x] Build system working (all 5 platforms)
 - [x] Browser UI tested and working
+- [x] QEMU Controller → Python 3.11 + coredevices/qemu
+- [x] Default app template for new native C projects
 
 ### Still TODO 🔄
 
-- [ ] **QEMU Controller** - Upgrade to Python 3
-- [ ] **YCMD Proxy** - Upgrade to Python 3
+- [ ] **YCMD Proxy** - Upgrade to Python 3 (or replace with clangd/LSP)
 - [ ] **Remove SDK2 code paths** - Clean up legacy code
 - [ ] **Update frontend libraries** - CodeMirror 4.2 → 6.x (optional)
 - [ ] **MinIO** - Replace fake-s3 (optional, for production)

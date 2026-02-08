@@ -62,9 +62,12 @@ def _spin_up_server(request):
             if result.ok:
                 response = result.json()
                 if response['success']:
-                    secure = response['secure']
+                    # Use PUBLIC_URL for the WebSocket URL returned to the browser
+                    public_url = getattr(settings, 'PUBLIC_URL', server)
+                    public_ycm = public_url.rstrip('/') + '/ycmd/'
+                    secure = public_url.startswith('https')
                     scheme = "wss" if secure else "ws"
-                    ws_server = urlparse(server)._replace(scheme=scheme).geturl()
+                    ws_server = urlparse(public_ycm)._replace(scheme=scheme).geturl()
                     return {
                         'uuid': response['uuid'],
                         'server': ws_server,
@@ -78,4 +81,4 @@ def _spin_up_server(request):
             traceback.print_exc()
         logger.warning("Server %s failed; trying another.", server)
     # If we get out of here, something went wrong.
-    raise Exception(_('No Servers'))
+    raise Exception('No YCM servers available')

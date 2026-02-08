@@ -35,7 +35,7 @@ def spinup(content):
     messagekeys = content.get('messagekeys', [])
     resources = content.get('resources', [])
 
-    print("spinup in %s") % root_dir
+    print("spinup in %s" % root_dir)
     # Dump all the files we should need.
     for path, file_content in content['files'].items():
         abs_path = os.path.normpath(os.path.join(root_dir, path))
@@ -50,7 +50,7 @@ def spinup(content):
             else:
                 raise
         with open(abs_path, 'w') as f:
-            f.write(file_content.encode('utf-8'))
+            f.write(file_content)
 
     filesync = FileSync(root_dir)
 
@@ -94,7 +94,7 @@ def spinup(content):
                 ycms.ycms[platform] = ycm
 
     except Exception as e:
-        print("Failed to spawn ycm with root_dir %s") % root_dir
+        print("Failed to spawn ycm with root_dir %s" % root_dir)
         print(traceback.format_exc())
         return dict(success=False, error=str(e))
 
@@ -102,7 +102,7 @@ def spinup(content):
     this_uuid = str(uuid.uuid4())
     mapping[this_uuid] = ycms
     # print mapping
-    print("spinup complete (%s); %s -> %s") % (platforms, this_uuid, root_dir)
+    print("spinup complete (%s); %s -> %s" % (platforms, this_uuid, root_dir))
     # victory!
     return dict(success=True, uuid=this_uuid, libraries=lib_info, npm_error=npm_error)
 
@@ -123,7 +123,7 @@ def get_completions(ycms, data):
                 completions[completion['insertion_text']] = completion
 
     return dict(
-        completions=completions.values(),
+        completions=list(completions.values()),
         start_column=completion_start_column,
     )
 
@@ -153,7 +153,7 @@ def get_errors(ycms, data):
                 errors[error_key] = error
 
     return dict(
-        errors=errors.values()
+        errors=list(errors.values())
     )
 
 
@@ -215,11 +215,11 @@ def kill_completer(process_uuid):
     global mapping
     if process_uuid in mapping:
         for platform, ycm in mapping[process_uuid].ycms.items():
-            print("killing %s:%s (alive: %s)") % (process_uuid, platform, ycm.alive)
+            print("killing %s:%s (alive: %s)" % (process_uuid, platform, ycm.alive))
             ycm.close()
         del mapping[process_uuid]
     else:
-        print("no uuid %s to kill") % process_uuid
+        print("no uuid %s to kill" % process_uuid)
 
 
 def kill_completers():
@@ -243,12 +243,12 @@ def monitor_processes():
             for process_uuid, ycms in process_mapping.items():
                 for platform, ycm in ycms.ycms.items():
                     if not ycm.alive:
-                        print("killing %s:%s (alive: %s)") % (process_uuid, platform, ycm.alive)
+                        print("killing %s:%s (alive: %s)" % (process_uuid, platform, ycm.alive))
                         ycm.close()
                         to_kill.add(process_uuid)
             for process_uuid in to_kill:
                 del process_mapping[process_uuid]
-            print("process sweep collected %d instances") % len(to_kill)
+            print("process sweep collected %d instances" % len(to_kill))
 
     g = gevent.spawn(monitor, mapping)
     atexit.register(lambda: g.kill())

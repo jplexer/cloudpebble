@@ -28,7 +28,7 @@ services:
       - AWS_S3_FAKE_S3=s3:4569
       - MEDIA_URL=${PUBLIC_URL}/s3builds/
       - QEMU_URLS=${PUBLIC_URL}/
-      - YCM_URLS=${PUBLIC_URL}/ycmd/
+      - YCM_URLS=http://ycmd:80/
       - PUBLIC_URL=${PUBLIC_URL}/
       - EXPECT_SSL=${EXPECT_SSL:-no}
       - LIBPEBBLE_PROXY=wss://cloudpebble-ws.herokuapp.com/tool

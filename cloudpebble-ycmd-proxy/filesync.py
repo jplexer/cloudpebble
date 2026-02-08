@@ -21,8 +21,8 @@ class FileSync(object):
         for patch in patches:
             abs_path = self.abs_path(patch['filename'])
 
-            with open(abs_path) as f:
-                lines = [x.decode('utf-8') for x in f.readlines()]
+            with open(abs_path, encoding='utf-8') as f:
+                lines = f.readlines()
                 start = patch['start']
                 end = patch['end']
 
@@ -41,8 +41,8 @@ class FileSync(object):
                     content.extend(lines[end['line'] + 1:])
 
             # Writeback.
-            with open(abs_path, 'w') as f:
-                f.writelines([x.encode('utf-8') for x in content])
+            with open(abs_path, 'w', encoding='utf-8') as f:
+                f.writelines(content)
 
     def create_file(self, path, content):
         path = self.abs_path(path)
