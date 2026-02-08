@@ -53,8 +53,11 @@ var SharedPebble = new (function() {
     ];
 
     function isRound(kind) {
-        return ((kind & ConnectionType.QemuChalk) == ConnectionType.QemuChalk) ||
-               ((kind & ConnectionType.QemuGabbro) == ConnectionType.QemuGabbro);
+        return ((kind & ConnectionType.QemuChalk) == ConnectionType.QemuChalk);
+    }
+
+    function isGabbro(kind) {
+        return ((kind & ConnectionType.QemuGabbro) == ConnectionType.QemuGabbro);
     }
 
     function isRobert(kind) {
@@ -79,14 +82,18 @@ var SharedPebble = new (function() {
         });
         window.emu = mEmulator;
         var hide_emulator = function() {
-            $('#sidebar').removeClass('with-emulator');
+            $('#sidebar').removeClass('with-emulator with-emulator-gabbro');
             mEmulator = null;
         };
         mEmulator.on('disconnected', hide_emulator);
         $('#sidebar').addClass('with-emulator');
         var canvas_size = URL_BOOT_IMG[ConnectionPlatformNames[kind]].size;
-        emulator_container.removeClass('emulator-round emulator-robert');
-        if (isRound(kind)) {
+        emulator_container.removeClass('emulator-round emulator-gabbro emulator-robert');
+        $('#sidebar').removeClass('with-emulator-gabbro');
+        if (isGabbro(kind)) {
+            emulator_container.addClass('emulator-gabbro');
+            $('#sidebar').addClass('with-emulator-gabbro');
+        } else if (isRound(kind)) {
             emulator_container.addClass('emulator-round');
         } else if (isRobert(kind)) {
             emulator_container.addClass('emulator-robert');
@@ -192,7 +199,7 @@ var SharedPebble = new (function() {
                 mEmulator = null;
                 CloudPebble.Prompts.Progress.Fail();
                 CloudPebble.Prompts.Progress.Update(interpolate(gettext("Emulator boot failed: %s"), [error.message]));
-                $('#sidebar').removeClass('with-emulator');
+                $('#sidebar').removeClass('with-emulator with-emulator-gabbro');
                 throw error;
             });
         });

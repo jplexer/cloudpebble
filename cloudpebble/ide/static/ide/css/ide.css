@@ -48,6 +48,10 @@ strong {
     padding-top: 20px;
 }
 
+#sidebar.with-emulator-gabbro {
+    top: 280px;
+}
+
 .header {
     height: 50px;
 }
@@ -216,6 +220,46 @@ ul.nav-pills {
 .emulator-round .back.qemu-button {
     top: 80px;
     left: 16px;
+}
+
+#emulator-container.emulator-gabbro {
+    width: 300px;
+    height: 280px;
+    padding: 0;
+    /* background-image: url('../img/pebbles/black-20mm-hole.png'); */
+    background-image: none;
+    background-position: center;
+}
+#emulator-container.emulator-gabbro canvas {
+    left: 20px;
+    top: 10px;
+    border-radius: 130px;
+    border: 3px solid #555;
+}
+#emulator-container.emulator-gabbro .configure {
+    right: 10px;
+}
+.emulator-gabbro .select.qemu-button {
+    left: 270px;
+    top: 120px;
+}
+.emulator-gabbro .down.qemu-button {
+    -webkit-transform: rotate(30deg);
+        -ms-transform: rotate(30deg);
+            transform: rotate(30deg);
+    left: 256px;
+    top: 160px;
+}
+.emulator-gabbro .up.qemu-button {
+    left: 256px;
+    top: 40px;
+    -webkit-transform: rotate(330deg);
+        -ms-transform: rotate(330deg);
+            transform: rotate(330deg);
+}
+.emulator-gabbro .back.qemu-button {
+    top: 100px;
+    left: 0px;
 }
 
 #emulator-container.emulator-robert canvas {
