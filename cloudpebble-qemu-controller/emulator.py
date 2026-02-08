@@ -2,6 +2,7 @@ __author__ = 'katharine'
 
 import gevent
 import gevent.pool
+import logging
 import os
 import tempfile
 import settings
@@ -101,8 +102,16 @@ class Emulator(object):
     def _make_spi_image(self):
         with tempfile.NamedTemporaryFile(delete=False) as spi:
             self.spi_image = spi
-            with open(self._find_qemu_images() + "qemu_spi_flash.bin") as f:
-                self.spi_image.write(f.read())
+            image_dir = self._find_qemu_images()
+            bz2_path = image_dir + "qemu_spi_flash.bin.bz2"
+            raw_path = image_dir + "qemu_spi_flash.bin"
+            if os.path.exists(bz2_path):
+                import bz2
+                with open(bz2_path, 'rb') as f:
+                    spi.write(bz2.decompress(f.read()))
+            else:
+                with open(raw_path, 'rb') as f:
+                    spi.write(f.read())
 
 
     @staticmethod
@@ -156,8 +165,8 @@ class Emulator(object):
                 "-cpu", "cortex-m4",
             ])
         self.qemu = subprocess.Popen(qemu_args, cwd=settings.QEMU_DIR, stdout=None, stdin=subprocess.PIPE, stderr=None)
-        self.qemu.stdin.write("change vnc password\n")
-        self.qemu.stdin.write("%s\n" % self.token[:8])
+        self.qemu.stdin.write(b"change vnc password\n")
+        self.qemu.stdin.write(("%s\n" % self.token[:8]).encode())
         self.group.spawn(self.qemu.communicate)
         self._wait_for_qemu()
 
@@ -173,19 +182,18 @@ class Emulator(object):
         else:
             raise Exception("Emulator launch timed out.")
 
-        received = ''
+        received = b''
         for i in range(150):
             gevent.sleep(0.2)
             received += s.recv(256)
             # PBL-21275: we'll add less hacky solutions for this to the firmware.
-            if "<SDK Home>" in received or "<Launcher>" in received or "Ready for communication" in received:
+            if b"<SDK Home>" in received or b"<Launcher>" in received or b"Ready for communication" in received:
                 break
         else:
             raise Exception("Didn't get ready message from firmware.")
         s.close()
 
     def _spawn_pkjs(self):
-        os.chdir(os.path.dirname(settings.PKJS_BIN))
         env = os.environ.copy()
         hours = self.tz_offset // 60
         minutes = abs(self.tz_offset % 60)
@@ -196,15 +204,17 @@ class Emulator(object):
         else:
             oauth_arg = []
         self.persist_dir = tempfile.mkdtemp()
-        self.pkjs = subprocess.Popen([
-            "%s/bin/python" % settings.PKJS_VIRTUALENV, settings.PKJS_BIN,
+        cmd = [
+            'pypkjs',
             '--qemu', '127.0.0.1:%d' % self.bt_port,
             '--port', str(self.ws_port),
             '--token', self.token,
             '--persist', self.persist_dir,
             '--block-private-addresses',
-        ] + oauth_arg, env=env)
+        ] + oauth_arg
+        logging.info("spawning pkjs: token=%r (len=%d), cmd=%s", self.token, len(self.token), cmd)
+        self.pkjs = subprocess.Popen(cmd, env=env)
         self.group.spawn(self.pkjs.communicate)
 
     def _find_qemu_images(self):
-        return settings.QEMU_IMAGE_ROOT + "/" + self.platform + "/" + self.version + "/"
+        return settings.QEMU_IMAGE_ROOT + "/" + self.platform + "/qemu/"

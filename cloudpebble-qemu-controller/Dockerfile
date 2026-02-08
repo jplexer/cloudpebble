@@ -1,54 +1,64 @@
-FROM python:2.7
-MAINTAINER Katharine Berry <katharine@pebble.com>
+FROM debian:bullseye AS qemu-builder
 
-# Fix for Debian Buster EOL - switch to archive repos
-RUN sed -i -e 's/deb.debian.org/archive.debian.org/g' \
-           -e 's/security.debian.org/archive.debian.org/g' \
-           -e '/buster-updates/d' \
-    /etc/apt/sources.list
-
+# Build deps for QEMU (needs Python 2 for configure)
 RUN apt-get update && apt-get install -y \
-  libglib2.0-dev libpixman-1-dev libfdt-dev gnutls-dev
+  libglib2.0-dev libpixman-1-dev libfdt-dev gnutls-dev \
+  curl git make gcc pkg-config python2 \
+  && rm -rf /var/lib/apt/lists/*
 
-ENV QEMU_VERSION 2.5.2-pebble4
-  
-RUN mkdir /qemu && cd /qemu && \
-  curl -L https://github.com/iSevenDays/pebble_qemu/archive/v${QEMU_VERSION}.tar.gz | tar xz --strip 1 && \
-  ./configure \
-#    --enable-tcg-interpreter \
-	--extra-ldflags=-g \
-#   --with-coroutine=gthread \
-#    --enable-debug-tcg \
-    --enable-debug --disable-werror --target-list="arm-softmmu" \
-#    --extra-cflags=-DDEBUG_CLKTREE --extra-cflags=-DDEBUG_STM32_RCC \
-#    --extra-cflags=-DDEBUG_STM32_UART \
-#    --extra-cflags=-DDEBUG_GIC 
-	&& \
-  make clean && \
-  make -j4
+# Build QEMU from coredevices/qemu
+RUN git clone --depth 1 https://github.com/coredevices/qemu.git /qemu && \
+  cd /qemu && \
+  ./configure --python=python2 --extra-ldflags=-g --enable-debug --disable-werror \
+    --target-list="arm-softmmu" && \
+  make clean && make -j$(nproc)
 
-ENV PYPKJS_VERSION 1.1.1
+# --- Runtime stage ---
+FROM python:3.11-slim-bookworm
 
-#RUN git clone https://github.com/pebble/pypkjs.git --depth 1 --branch v$PYPKJS_VERSION --recursive
-RUN git clone https://github.com/pebble/pypkjs.git --depth 1 --branch master --recursive
+# Runtime deps for QEMU
+RUN apt-get update && apt-get install -y \
+  libglib2.0-0 libpixman-1-0 libfdt1 libgnutls30 \
+  curl git \
+  && rm -rf /var/lib/apt/lists/*
 
-RUN virtualenv /pypkjs/.env && . /pypkjs/.env/bin/activate && pip install -r /pypkjs/requirements.txt
+# Copy built QEMU from builder
+COPY --from=qemu-builder /qemu /qemu
 
-ENV FIRMWARE_VERSION 4.3
+# Download latest SDK and extract firmware images only
+RUN SDK_INFO=$(curl -sf https://sdk.core.store/v1/files/sdk-core/latest) && \
+  SDK_URL=$(echo "$SDK_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['url'])") && \
+  SDK_VERSION=$(echo "$SDK_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['version'])") && \
+  echo "Downloading SDK $SDK_VERSION from $SDK_URL..." && \
+  curl -Lf "$SDK_URL" -o /tmp/sdk.tar.gz && \
+  mkdir -p /sdk-images && \
+  tar xzf /tmp/sdk.tar.gz -C /sdk-images --strip-components=2 "sdk-core/pebble/" && \
+  rm /tmp/sdk.tar.gz && \
+  echo "Firmware platforms:" && ls /sdk-images/
 
-RUN mkdir /qemu-tintin-images && cd /qemu-tintin-images && \
-  curl -L https://github.com/pebble/qemu-tintin-images/archive/v${FIRMWARE_VERSION}.tar.gz | tar xz --strip 1
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
+# Install pypkjs from coredevices
+RUN uv pip install --system git+https://github.com/coredevices/pypkjs.git
 
+# Fix pypkjs Python 3 bug: struct.unpack returns bytes but token from
+# argparse is str, so auth comparison always fails. Decode bytes to str.
+RUN sed -i 's/if token == self\.token:/if token.decode("utf-8") == self.token:/' \
+  /usr/local/lib/python3.11/site-packages/pypkjs/runner/websocket.py
+
+# Controller deps
 ADD requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN uv pip install --system -r /tmp/requirements.txt
 
 COPY . /code
 WORKDIR /code
 
-ENV QEMU_DIR=/qemu QEMU_BIN=/qemu/arm-softmmu/qemu-system-arm PKJS_BIN=/pypkjs/phonesim.py \
-  PKJS_VIRTUALENV=/pypkjs/.env QCON_PORT=80 QEMU_IMAGE_ROOT=/qemu-tintin-images
+ENV QEMU_DIR=/qemu \
+    QEMU_BIN=/qemu/arm-softmmu/qemu-system-arm \
+    QEMU_IMAGE_ROOT=/sdk-images \
+    QCON_PORT=80
 
-EXPOSE $QCON_PORT
-
+EXPOSE 80
 CMD ["python", "controller.py"]

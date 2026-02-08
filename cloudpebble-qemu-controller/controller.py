@@ -6,7 +6,7 @@ gevent.monkey.patch_all(subprocess=True)
 import gevent
 import gevent.pool
 from flask import Flask, request, jsonify, abort
-from flask.ext.cors import CORS
+from flask_cors import CORS
 from time import time as now
 import ssl
 import os
@@ -29,7 +29,14 @@ app = Flask(__name__)
 cors = CORS(app, headers=["X-Requested-With", "X-CSRFToken", "Content-Type"], resources="/qemu/*")
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(asctime)s: %(message)s")
 
+import geventwebsocket as _gws
+logging.info("gevent-websocket version: %s", getattr(_gws, '__version__', 'unknown'))
+
 emulators = {}
+
+@app.before_request
+def log_request():
+    logging.debug("REQUEST: %s %s", request.method, request.path)
 
 @app.route('/qemu/launch', methods=['POST'])
 def launch():
@@ -93,49 +100,70 @@ def kill(emu):
 def proxy_ws(emu, attr, subprotocols=[]):
     server_ws = request.environ.get('wsgi.websocket', None)
     if server_ws is None:
+        logging.warning("proxy_ws: no wsgi.websocket in environ for %s", attr)
         return "websocket endpoint", 400
 
     try:
         emulator = emulators[UUID(emu)]
-    except ValueError:
+    except (ValueError, KeyError):
+        logging.warning("proxy_ws: emulator %s not found", emu)
         abort(404)
         return  # unreachable but makes IDE happy.
     target_url = "ws://localhost:%d/" % getattr(emulator, attr)
+    logging.info("proxy_ws: connecting to %s (attr=%s)", target_url, attr)
     try:
-        client_ws = websocket.create_connection(target_url, subprotocols=subprotocols, sslopt={
-            'ssl_version': ssl.PROTOCOL_TLSv1,
-            'ca_certs': '%s/ca-cert.pem' % settings.SSL_ROOT,
-            'cert_reqs': ssl.CERT_NONE,
-        })
+        client_ws = websocket.create_connection(target_url, subprotocols=subprotocols)
     except:
-        logging.exception("connection to %s failed.", target_url)
+        logging.exception("proxy_ws: connection to %s failed.", target_url)
         return 'failed', 500
+    logging.info("proxy_ws: connected to %s, starting relay", target_url)
     alive = [True]
-    def do_recv(receive, send):
+    def do_recv(direction, receive, send):
         try:
+            count = 0
             while alive[0]:
-                send(receive())
-        except (websocket.WebSocketException, geventwebsocket.WebSocketError, TypeError):
+                data = receive()
+                if data is None:
+                    logging.info("proxy_ws: %s received None, closing", direction)
+                    alive[0] = False
+                    break
+                count += 1
+                send(data)
+            logging.info("proxy_ws: %s loop ended after %d messages", direction, count)
+        except (websocket.WebSocketException, geventwebsocket.WebSocketError, TypeError) as e:
+            logging.info("proxy_ws: %s ended with %s: %s after %d messages", direction, type(e).__name__, e, count)
             alive[0] = False
-        except:
+        except Exception as e:
+            logging.exception("proxy_ws: %s unexpected error after %d messages", direction, count)
             alive[0] = False
             raise
 
     group = gevent.pool.Group()
-    group.spawn(do_recv, lambda: server_ws.receive(), lambda x: client_ws.send_binary(x))
-    group.spawn(do_recv, lambda: bytearray(client_ws.recv()), lambda x: server_ws.send(x))
+    group.spawn(do_recv, "browser->target", lambda: server_ws.receive(), lambda x: client_ws.send_binary(x))
+    group.spawn(do_recv, "target->browser", lambda: bytearray(client_ws.recv()), lambda x: server_ws.send(x))
     group.join()
+    logging.info("proxy_ws: relay ended for %s", target_url)
     return ''
 
 app.app_protocol = lambda x: 'binary' if 'vnc' in x else None
 
 @app.route('/qemu/<emu>/ws/phone')
 def ws_phone(emu):
-    return proxy_ws(emu, 'ws_port')
+    logging.info("ws_phone called for emu=%s", emu)
+    try:
+        return proxy_ws(emu, 'ws_port')
+    except Exception:
+        logging.exception("ws_phone crashed")
+        return 'error', 500
 
 @app.route('/qemu/<emu>/ws/vnc')
 def ws_vnc(emu):
-    return proxy_ws(emu, 'vnc_ws_port', subprotocols=['binary'])
+    logging.info("ws_vnc called for emu=%s", emu)
+    try:
+        return proxy_ws(emu, 'vnc_ws_port', subprotocols=['binary'])
+    except Exception:
+        logging.exception("ws_vnc crashed")
+        return 'error', 500
 
 
 def _kill_idle_emulators():
@@ -185,9 +213,25 @@ def drop_privileges(uid_name='nobody', gid_name='nogroup'):
     os.setuid(running_uid)
 
     # Ensure a very conservative umask
-    os.umask(077)
+    os.umask(0o77)
 
 logging.info("Emulator limit: %d", settings.EMULATOR_LIMIT)
+
+class WebSocketFixMiddleware(object):
+    """Werkzeug 2.x+ has WebSocket-aware routing that rejects WS requests
+    to non-WebSocket routes with 400. Since we use gevent-websocket which
+    handles the upgrade before Flask sees the request, we strip the Upgrade
+    header so Werkzeug treats it as a normal GET. The actual WebSocket
+    object remains available in environ['wsgi.websocket']."""
+    def __init__(self, app):
+        self._app = app
+        if hasattr(app, 'app_protocol'):
+            self.app_protocol = app.app_protocol
+    def __call__(self, environ, start_response):
+        if environ.get('wsgi.websocket') is not None:
+            environ.pop('HTTP_UPGRADE', None)
+            environ.pop('HTTP_CONNECTION', None)
+        return self._app(environ, start_response)
 
 if __name__ == '__main__':
     app.debug = settings.DEBUG
@@ -200,7 +244,8 @@ if __name__ == '__main__':
             'ssl_version': ssl.PROTOCOL_TLSv1_2,
             'ciphers': 'EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS !RC4',
         }
-    server = pywsgi.WSGIServer(('', settings.PORT), app, handler_class=WebSocketHandler, **ssl_args)
+    ws_app = WebSocketFixMiddleware(app)
+    server = pywsgi.WSGIServer(('', settings.PORT), ws_app, handler_class=WebSocketHandler, **ssl_args)
     server.start()
     if settings.RUN_AS_USER is not None:
         drop_privileges(settings.RUN_AS_USER, settings.RUN_AS_USER)
