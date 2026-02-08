@@ -193,10 +193,10 @@ Set `QEMU_URLS` to the Hetzner server's public HTTPS endpoint. The browser conne
 
 ## Credits
 
-- Original CloudPebble by [Pebble Technology](https://github.com/pebble) / Katharine Berry
+- Originally written by Katharine Berry, supported by [Pebble Technology](https://github.com/pebble)
 - Community revival at [Rebble](https://rebble.io)
-- 2026 modernization by Eric Migicovsky
 - Docker Compose setup by [iSevenDays](https://github.com/iSevenDays/cloudpebble-composed)
+- 2026 modernization by Eric Migicovsky
 
 ## License
 
