@@ -212,6 +212,188 @@ function draw(event) {
 Pebble.addEventListener('minutechange', draw);
 """
 
+ALLOY_WEATHER_JS_TEMPLATE = """\
+import Poco from "commodetto/Poco";
+import Message from "pebble/message";
+
+const render = new Poco(screen);
+
+// Colors - teal and orange theme
+const teal = render.makeColor(0, 128, 128);
+const white = render.makeColor(255, 255, 255);
+const yellow = render.makeColor(255, 215, 0);
+const orange = render.makeColor(255, 140, 0);
+
+// Fonts - Leco for big digits, Gothic-Bold for weather
+const timeFont = new render.Font("Leco-Regular", 42);
+const weatherFont = new render.Font("Gothic-Bold", 28);
+const conditionsFont = new render.Font("Gothic-Regular", 24);
+
+// Weather and location data
+let weather = null;
+let latitude = null;
+let longitude = null;
+let fetching = false;
+let lastFetch = 0;
+
+// Set up messaging to receive location from phone
+const message = new Message({
+    input: 256,
+    output: 256,
+    keys: new Map([
+        ["LATITUDE", 0],
+        ["LONGITUDE", 1],
+        ["REQUEST_LOCATION", 2]
+    ]),
+    onReadable() {
+        const msg = this.read();
+        if (!msg) return;
+
+        if (msg.has("LATITUDE") && msg.has("LONGITUDE")) {
+            latitude = msg.get("LATITUDE") / 10000;
+            longitude = msg.get("LONGITUDE") / 10000;
+            console.log("Got location: " + latitude + ", " + longitude);
+            fetchWeather();
+        }
+    },
+    onWritable() {
+        if (!this.requested) {
+            this.requested = true;
+            console.log("Requesting location...");
+            this.write(new Map([["REQUEST_LOCATION", 1]]));
+        }
+    }
+});
+
+// Map Open-Meteo weather codes to descriptions
+function getWeatherDescription(code) {
+    if (code === 0) return "Clear";
+    if (code <= 3) return "Cloudy";
+    if (code <= 49) return "Fog";
+    if (code <= 59) return "Drizzle";
+    if (code <= 69) return "Rain";
+    if (code <= 79) return "Snow";
+    if (code <= 99) return "Thunderstorm";
+    return "Unknown";
+}
+
+function drawWeather() {
+    const tempStr = `${weather.temp}\\u00b0C`;
+    let width = render.getTextWidth(tempStr, weatherFont);
+    render.drawText(tempStr, weatherFont, yellow,
+        (render.width - width) / 2, 20);
+
+    width = render.getTextWidth(weather.conditions, conditionsFont);
+    render.drawText(weather.conditions, conditionsFont, orange,
+        (render.width - width) / 2, render.height - conditionsFont.height - 20);
+}
+
+function draw(event) {
+    const now = event?.date ?? new Date();
+
+    render.begin();
+    render.fillRectangle(teal, 0, 0, render.width, render.height);
+
+    // Draw time in white
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    const timeStr = `${hours}:${minutes}`;
+
+    let width = render.getTextWidth(timeStr, timeFont);
+    render.drawText(timeStr, timeFont, white,
+        (render.width - width) / 2,
+        (render.height - timeFont.height) / 2);
+
+    // Draw weather if available
+    if (weather) {
+        drawWeather();
+    } else {
+        const msg = "Loading...";
+        width = render.getTextWidth(msg, conditionsFont);
+        render.drawText(msg, conditionsFont, white,
+            (render.width - width) / 2, 20);
+    }
+
+    render.end();
+}
+
+async function fetchWeather() {
+    if (latitude === null || longitude === null) return;
+    if (fetching) return;
+
+    const now = Date.now();
+    if (lastFetch && now - lastFetch < 1800000) return; // 30 min cooldown
+
+    fetching = true;
+    lastFetch = now;
+
+    try {
+        const url = new URL("http://api.open-meteo.com/v1/forecast");
+        url.search = new URLSearchParams({
+            latitude,
+            longitude,
+            current: "temperature_2m,weather_code"
+        });
+
+        console.log("Fetching weather...");
+        const response = await fetch(url);
+        const data = await response.json();
+
+        weather = {
+            temp: Math.round(data.current.temperature_2m),
+            conditions: getWeatherDescription(data.current.weather_code)
+        };
+
+        console.log("Weather: " + weather.temp + "C, " + weather.conditions);
+        draw();
+
+    } catch (e) {
+        console.log("Weather fetch error: " + e);
+        lastFetch = 0; // Allow retry on error
+    } finally {
+        fetching = false;
+    }
+}
+
+// Time updates (fires immediately when registered)
+Pebble.addEventListener('minutechange', function(event) {
+    draw(event);
+    fetchWeather(); // Will no-op unless 30 min have passed
+});
+"""
+
+ALLOY_WEATHER_PKJS_TEMPLATE = """\
+const moddableProxy = require("@moddable/pebbleproxy");
+
+Pebble.addEventListener('appmessage', function(e) {
+    if (moddableProxy.appMessageReceived(e))
+        return;
+
+    // Key 2 = REQUEST_LOCATION
+    if (e.payload[2] !== undefined) {
+        console.log("Location requested");
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                console.log("Got location: " + pos.coords.latitude + ", " + pos.coords.longitude);
+                Pebble.sendAppMessage({
+                    0: Math.round(pos.coords.latitude * 10000),
+                    1: Math.round(pos.coords.longitude * 10000)
+                });
+            },
+            function(err) {
+                console.log("Location error: " + err.message);
+            },
+            { timeout: 15000, maximumAge: 60000 }
+        );
+    }
+});
+
+Pebble.addEventListener("ready", function(e) {
+    console.log("PebbleKit JS ready");
+    moddableProxy.readyReceived(e);
+});
+"""
+
 
 @require_safe
 @login_required
@@ -390,7 +572,9 @@ def create_project(request):
                 alloy_template = request.POST.get('alloy_template', '0')
                 f = SourceFile.objects.create(project=project, file_name="mdbl.c", target='app')
                 f.save_text(ALLOY_C_TEMPLATE)
-                if alloy_template == '1':
+                if alloy_template == '2':
+                    js_template = ALLOY_WEATHER_JS_TEMPLATE
+                elif alloy_template == '1':
                     js_template = ALLOY_ANALOG_JS_TEMPLATE
                 else:
                     js_template = ALLOY_JS_TEMPLATE
@@ -398,6 +582,10 @@ def create_project(request):
                 f.save_text(js_template)
                 f = SourceFile.objects.create(project=project, file_name="manifest.json", target='embeddedjs')
                 f.save_text(ALLOY_MANIFEST_TEMPLATE)
+                if alloy_template == '2':
+                    f = SourceFile.objects.create(project=project, file_name="index.js", target='pkjs')
+                    f.save_text(ALLOY_WEATHER_PKJS_TEMPLATE)
+                    project.app_keys = '["LATITUDE", "LONGITUDE", "REQUEST_LOCATION"]'
             elif project_type == 'pebblejs':
                 f = SourceFile.objects.create(project=project, file_name="app.js")
                 f.save_text(open('{}/src/js/app.js'.format(settings.PEBBLEJS_ROOT)).read())

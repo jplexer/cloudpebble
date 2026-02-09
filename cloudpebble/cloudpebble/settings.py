@@ -197,7 +197,6 @@ MIDDLEWARE = (
 )
 
 AUTHENTICATION_BACKENDS = (
-    'auth.pebble.PebbleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
 
@@ -406,6 +405,8 @@ QEMU_LAUNCH_AUTH_HEADER = _environ.get('QEMU_LAUNCH_AUTH_HEADER', 'secret')
 QEMU_LAUNCH_TIMEOUT = int(_environ.get('QEMU_LAUNCH_TIMEOUT', 25))
 
 PHONE_SHORTURL = _environ.get('PHONE_SHORTURL', 'cpbl.io')
+
+FIREBASE_PROJECT_ID = _environ.get('FIREBASE_PROJECT_ID', 'coreapp-ce061')
 
 WAF_NODE_PATH = _environ.get('WAF_NODE_PATH', None)
 

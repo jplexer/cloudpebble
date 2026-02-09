@@ -57,7 +57,7 @@
 
 .show-login .login {
     padding-top: 30px;
-    height: 380px;
+    height: 300px;
 }
 
 .header-login .btn-cancel {
@@ -77,7 +77,13 @@
 }
 
 .login .box {
-    height: 300px;
+    height: 220px;
+}
+
+.login-box-holder {
+    width: 455px;
+    margin: 0 auto;
+    float: none;
 }
 
 .login .btn {

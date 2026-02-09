@@ -10,6 +10,7 @@ urlpatterns = [
     re_path(r'^register/?$', reg_view, name="registration_register"),
     re_path(r'^logout/?$', views.logout_view, name="logout"),
     re_path(r'^api/login$', views.login_action, name="login"),
+    re_path(r'^api/firebase-login$', views.firebase_login, name="firebase_login"),
     # Password reset views
     path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'),
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),

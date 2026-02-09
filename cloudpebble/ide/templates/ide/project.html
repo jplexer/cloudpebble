@@ -40,7 +40,7 @@
         </h1>
         <div class="header-right">
             <ul class="nav-pills">
-                <li><a href="https://developer.getpebble.com/" target="_blank" class="btn">{% trans 'Documentation' %}</a></li>
+                <li><a href="https://developer.repebble.com/" target="_blank" class="btn">{% trans 'Documentation' %}</a></li>
                 <li><a href="{% url 'ide:index' %}" class="btn">{% trans 'Projects' %}</a></li>
                 <li><a href="{% url 'ide:settings' %}" class="btn">{% trans 'Settings' %}</a></li>
                 <li><a href="{% url 'logout' %}" class="btn">{% trans 'Sign out' %}</a></li>
@@ -109,9 +109,8 @@
         <p class="small-print">
             {% get_current_language as lang %}
             {% if lang == 'en' %}
-            Questions? Email us at <a href="mailto:cloudpebble@getpebble.com">cloudpebble@getpebble.com</a>.
+            Questions? Please post to the <a href="https://forum.repebble.com/c/developers-ask-questions-and-get-help/7" target="_blank">Pebble forum</a>.
             {% endif %}
-            {% blocktrans with cookie="https://getpebble.com/legal/cookies/" privacy="https://getpebble.com/legal/privacy/" %}See our <a href="{{ cookie }}" target="_blank">cookie</a> and <a href="{{ privacy }}" target="_blank">privacy</a> policies.{% endblocktrans %}
         </p>
         <div class="pebble-logo">
             <div class="hide footer-credits">

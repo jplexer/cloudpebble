@@ -15,6 +15,7 @@ $(function() {
                 $('<select id="alloy-template">' +
                     '<option value="0" selected>' + gettext("Digital watchface") + '</option>' +
                     '<option value="1">' + gettext("Simple analog watchface") + '</option>' +
+                    '<option value="2">' + gettext("Digital watchface with weather") + '</option>' +
                   '</select>')
                     .insertAfter('#project-template');
             }

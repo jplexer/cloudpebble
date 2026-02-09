@@ -33,6 +33,7 @@ services:
       - EXPECT_SSL=${EXPECT_SSL:-no}
       - LIBPEBBLE_PROXY=wss://cloudpebble-ws.herokuapp.com/tool
       - PEBBLE_AUTH_URL=https://auth.rebble.io
+      - FIREBASE_PROJECT_ID=coreapp-ce061
 
   celery:
     build: cloudpebble/

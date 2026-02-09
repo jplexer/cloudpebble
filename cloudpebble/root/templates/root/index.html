@@ -16,30 +16,11 @@
 {% block precontent %}
     <div class="login">
         <div class="container">
-            <div class="box-holder">
+            <div class="box-holder login-box-holder">
                 <div class="box">
-                    {% if sso_root %}
-                    <h3>{% trans "Already have a Pebble account?" %}</h3>
-                    <p>{% trans "This is the same account you use to log in to the Pebble Forums, Developer Portal and phone app. Don't have a Pebble account? Create one!" %}</p>
-                    <p><a class="btn btn-primary" href="/login/pebble/?next={{ next }}">{% trans "Log in with your Pebble account" %}</a></p>
-                    <p><a class="btn" href="{{ sso_root }}/users/sign_up">{% trans "Create Pebble account" %}</a></p>
-                    {% else %}
-                    {# This doesn't show up in production so isn't worth translating. #}
-                    <h3>This build is running without SSO support</h3>
-                    <p>You create an account with the button below,
-                       then use the "link" button on the right to log in.
-                       It won't actually link anything, and this does not work in production.</p>
-                    <p><a class="btn" href="/accounts/register">Create Local Account</a></p>
-                    {% endif %}
-                </div>
-                <div class="box">
-                    <h3>{% trans "Have a legacy CloudPebble account?" %}</h3>
-                    <p>{% blocktrans %}Log in to link it with your Pebble account. Legacy
-accounts are being phased out in favour of the
-Pebble account system. Once you log in you will be
-required to link your accounts;
-henceforth you must log in with your pebble account.{% endblocktrans %}</p>
-                    <p><button class="btn" id="legacy-trigger-btn">{% trans "Link to your Pebble account" %}</button></p>
+                    <h3>{% trans "Welcome to CloudPebble" %}</h3>
+                    <p><button class="btn btn-primary" id="firebase-login-btn">{% trans "Log in with your Pebble account" %}</button></p>
+                    <p><button class="btn" disabled style="opacity: 0.4; cursor: default;">{% trans "Create Pebble account" %}</button></p>
                 </div>
             </div>
         </div>
@@ -83,32 +64,24 @@ henceforth you must log in with your pebble account.{% endblocktrans %}</p>
 {% endblock %}
 
 {% block modals %}
-<div id="legacy-login" class="modal hide fade" tabindex="-1" role="dialog">
+<div id="provider-chooser" class="modal hide fade" tabindex="-1" role="dialog">
     <div class="modal-header">
-        <h3 id="modal-warning-prompt-title">{% trans "Log in with legacy account" %}</h3>
+        <h3>{% trans "Choose sign-in method" %}</h3>
     </div>
-    <div class="modal-body">
-        <form class="form-horizontal">
-            <div class="control-group">
-                <label for="legacy-username">{% trans "Username" %}</label>
-                <div class="controls">
-                    <input type="text" id="legacy-username">
-                </div>
-                <label for="legacy-password">{% trans "Password" %}</label>
-                <div class="controls">
-                    <input type="password" id="legacy-password">
-                </div>
-            </div>
-        </form>
+    <div class="modal-body" style="text-align: center;">
+        <button class="btn btn-large provider-btn" data-provider="google" style="width: 300px; margin-bottom: 10px;">{% trans "Sign in with Google" %}</button><br>
+        <button class="btn btn-large provider-btn" data-provider="github" style="width: 300px; margin-bottom: 10px;">{% trans "Sign in with GitHub" %}</button><br>
+        <button class="btn btn-large provider-btn" data-provider="apple" style="width: 300px;">{% trans "Sign in with Apple" %}</button>
     </div>
     <div class="modal-footer">
-        <button class="btn btn-primary" id="legacy-login-btn">{% trans "Log in" %}</button>
         <button class="btn" data-dismiss="modal">{% trans "Cancel" %}</button>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="{% static 'ide/js/csrf.js' %}"></script>
     <script src="{% static 'root/js/splash.js' %}"></script>
 {% endblock %}
