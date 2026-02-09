@@ -37,6 +37,7 @@ services:
       - FIREBASE_PROJECT_ID=coreapp-ce061
       - GITHUB_ID=${GITHUB_ID:-}
       - GITHUB_SECRET=${GITHUB_SECRET:-}
+      - SECRET_KEY=${SECRET_KEY}
 
   celery:
     build: cloudpebble/
@@ -52,6 +53,7 @@ services:
       - AWS_S3_FAKE_S3=s3:4569
       - GITHUB_ID=${GITHUB_ID:-}
       - GITHUB_SECRET=${GITHUB_SECRET:-}
+      - SECRET_KEY=${SECRET_KEY}
 
   qemu:
     build: cloudpebble-qemu-controller/

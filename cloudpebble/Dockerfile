@@ -71,7 +71,7 @@ RUN rm -rf bower_components && \
     "bluebird#3.3.4" \
     "kanaka/noVNC#v0.5"
 
-RUN /usr/local/bin/python manage.py compilemessages
+RUN SECRET_KEY=build-placeholder /usr/local/bin/python manage.py compilemessages
 
 RUN make -C /code/c-preload
 

@@ -172,7 +172,7 @@ BOWER_INSTALLED_APPS = (
 )
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = _environ.get('SECRET_KEY', 'y_!-!-i!_txo$v5j(@c7m4uk^jyg)l4bf*0yqrztmax)l2027j')
+SECRET_KEY = _environ['SECRET_KEY']
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (

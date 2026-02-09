@@ -53,22 +53,25 @@ $(function() {
         }).catch(function(error) {
             if (error.code === 'auth/account-exists-with-different-credential') {
                 var pendingCred = error.credential;
-                var email = error.customData.email;
-                return firebase.auth().fetchSignInMethodsForEmail(email).then(function(methods) {
-                    var originalProvider;
-                    var method = methods[0];
-                    if (method === 'google.com') {
-                        originalProvider = new firebase.auth.GoogleAuthProvider();
-                    } else if (method === 'github.com') {
-                        originalProvider = new firebase.auth.GithubAuthProvider();
-                    } else if (method === 'apple.com') {
-                        originalProvider = new firebase.auth.OAuthProvider('apple.com');
-                    } else {
-                        throw new Error('Unsupported provider: ' + method);
-                    }
-                    originalProvider.setCustomParameters({login_hint: email});
-                    return firebase.auth().signInWithPopup(originalProvider);
-                }).then(function(result) {
+                var email = error.customData ? error.customData.email : '';
+                // Try each other provider to find the one that owns this email.
+                // fetchSignInMethodsForEmail no longer works due to Firebase email enumeration protection.
+                var otherProviders = ['google', 'github', 'apple'].filter(function(p) { return p !== providerName; });
+                var providerNames = {google: 'Google', github: 'GitHub', apple: 'Apple'};
+                var otherLabels = otherProviders.map(function(p) { return providerNames[p]; }).join(' or ');
+                alert('An account already exists with ' + (email || 'this email') + ' using a different sign-in method. Please sign in with ' + otherLabels + ' to link your accounts.');
+                // Try the first other provider automatically
+                var tryProvider;
+                var tryName = otherProviders[0];
+                if (tryName === 'google') {
+                    tryProvider = new firebase.auth.GoogleAuthProvider();
+                } else if (tryName === 'github') {
+                    tryProvider = new firebase.auth.GithubAuthProvider();
+                } else if (tryName === 'apple') {
+                    tryProvider = new firebase.auth.OAuthProvider('apple.com');
+                }
+                if (email) tryProvider.setCustomParameters({login_hint: email});
+                return firebase.auth().signInWithPopup(tryProvider).then(function(result) {
                     return result.user.linkWithCredential(pendingCred);
                 }).then(function(result) {
                     return result.user.getIdToken();
