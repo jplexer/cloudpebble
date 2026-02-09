@@ -586,6 +586,9 @@ def create_project(request):
                     f = SourceFile.objects.create(project=project, file_name="index.js", target='pkjs')
                     f.save_text(ALLOY_WEATHER_PKJS_TEMPLATE)
                     project.app_keys = '["LATITUDE", "LONGITUDE", "REQUEST_LOCATION"]'
+                    project.app_is_watchface = True
+                    project.app_capabilities = 'location'
+                    project.set_dependencies({'@moddable/pebbleproxy': '^0.1.3'})
             elif project_type == 'pebblejs':
                 f = SourceFile.objects.create(project=project, file_name="app.js")
                 f.save_text(open('{}/src/js/app.js'.format(settings.PEBBLEJS_ROOT)).read())
