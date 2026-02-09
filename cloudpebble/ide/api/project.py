@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import transaction, IntegrityError
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 from django.views.decorators.http import require_safe, require_POST
 
 from ide.models.build import BuildResult
@@ -462,6 +463,25 @@ def compile_project(request, project_id):
     return {"build_id": build.id, "task_id": task.task_id}
 
 
+def _serialize_build(build, project):
+    if getattr(settings, 'AWS_S3_ENDPOINT_URL', None):
+        download_file = 'package.tar.gz' if project.project_type == 'package' else 'watchface.pbw'
+        download = '/ide/project/%d/build/%d/download/%s' % (project.id, build.id, download_file)
+    else:
+        download = build.package_url if project.project_type == 'package' else build.pbw_url
+    return {
+        'uuid': build.uuid,
+        'state': build.state,
+        'started': str(build.started),
+        'finished': str(build.finished) if build.finished else None,
+        'id': build.id,
+        'download': download,
+        'log': build.build_log_url,
+        'build_dir': build.get_url(),
+        'sizes': build.get_sizes(),
+    }
+
+
 @require_safe
 @login_required
 @json_view
@@ -472,17 +492,7 @@ def last_build(request, project_id):
     except (IndexError, BuildResult.DoesNotExist):
         return {"build": None}
     else:
-        b = {
-            'uuid': build.uuid,
-            'state': build.state,
-            'started': str(build.started),
-            'finished': str(build.finished) if build.finished else None,
-            'id': build.id,
-            'download': build.package_url if project.project_type == 'package' else build.pbw_url,
-            'log': build.build_log_url,
-            'build_dir': build.get_url(),
-            'sizes': build.get_sizes(),
-        }
+        b = _serialize_build(build, project)
         return {"build": b}
 
 
@@ -498,17 +508,7 @@ def build_history(request, project_id):
 
     out = []
     for build in builds:
-        out.append({
-            'uuid': build.uuid,
-            'state': build.state,
-            'started': str(build.started),
-            'finished': str(build.finished) if build.finished else None,
-            'id': build.id,
-            'download': build.package_url if project.project_type == 'package' else build.pbw_url,
-            'log': build.build_log_url,
-            'build_dir': build.get_url(),
-            'sizes': build.get_sizes()
-        })
+        out.append(_serialize_build(build, project))
     return {"builds": out}
 
 
@@ -528,6 +528,34 @@ def build_log(request, project_id, build_id):
     }, request=request, project=project)
 
     return {"log": log}
+
+
+DOWNLOAD_CONTENT_TYPES = {
+    'watchface.pbw': 'application/octet-stream',
+    'package.tar.gz': 'application/gzip',
+}
+
+
+@require_safe
+@login_required
+def build_download(request, project_id, build_id, filename):
+    """Proxy build artifact downloads from S3/R2 to avoid CORS issues."""
+    import utils.s3 as s3
+    project = get_object_or_404(Project, pk=project_id, owner=request.user)
+    build = get_object_or_404(BuildResult, project=project, pk=build_id)
+
+    if filename == 'watchface.pbw':
+        s3_path = build.pbw
+    elif filename == 'package.tar.gz':
+        s3_path = build.package
+    else:
+        return HttpResponse(status=404)
+
+    content_type = DOWNLOAD_CONTENT_TYPES.get(filename, 'application/octet-stream')
+    data = s3.read_file('builds', s3_path)
+    response = HttpResponse(data, content_type=content_type)
+    response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+    return response
 
 
 @require_POST

@@ -27,10 +27,54 @@ class BucketHolder(object):
         self.configured = False
         self.s3 = None
         self.s3_resource = None
+        self.supports_acl = True
 
     def configure(self):
         if settings.AWS_ENABLED:
-            if settings.AWS_S3_FAKE_S3 is None:
+            endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
+            if settings.AWS_S3_FAKE_S3 is not None:
+                # Fake S3 (e.g., minio, fake-s3) — local dev
+                host, port = (settings.AWS_S3_FAKE_S3.split(':', 2) + ['80'])[:2]
+                port = int(port)
+                fake_endpoint = 'http://%s:%d' % (host, port)
+
+                self.s3 = boto3.client(
+                    's3',
+                    aws_access_key_id='key_id',
+                    aws_secret_access_key='secret_key',
+                    endpoint_url=fake_endpoint,
+                    config=Config(s3={'addressing_style': 'path'}),
+                )
+                self.s3_resource = boto3.resource(
+                    's3',
+                    aws_access_key_id='key_id',
+                    aws_secret_access_key='secret_key',
+                    endpoint_url=fake_endpoint,
+                    config=Config(s3={'addressing_style': 'path'}),
+                )
+                self.supports_acl = True
+
+                _ensure_bucket_exists(self.s3, settings.AWS_S3_SOURCE_BUCKET)
+                _ensure_bucket_exists(self.s3, settings.AWS_S3_EXPORT_BUCKET)
+                _ensure_bucket_exists(self.s3, settings.AWS_S3_BUILDS_BUCKET)
+            elif endpoint_url:
+                # S3-compatible service (Cloudflare R2, MinIO, etc.)
+                self.s3 = boto3.client(
+                    's3',
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    endpoint_url=endpoint_url,
+                    config=Config(s3={'addressing_style': 'path'}),
+                )
+                self.s3_resource = boto3.resource(
+                    's3',
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    endpoint_url=endpoint_url,
+                    config=Config(s3={'addressing_style': 'path'}),
+                )
+                self.supports_acl = False
+            else:
                 # Real AWS S3
                 self.s3 = boto3.client(
                     's3',
@@ -44,30 +88,7 @@ class BucketHolder(object):
                     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                     region_name=getattr(settings, 'AWS_S3_REGION', 'us-east-1'),
                 )
-            else:
-                # Fake S3 (e.g., minio, fake-s3)
-                host, port = (settings.AWS_S3_FAKE_S3.split(':', 2) + ['80'])[:2]
-                port = int(port)
-                endpoint_url = f'http://{host}:{port}'
-                
-                self.s3 = boto3.client(
-                    's3',
-                    aws_access_key_id='key_id',
-                    aws_secret_access_key='secret_key',
-                    endpoint_url=endpoint_url,
-                    config=Config(s3={'addressing_style': 'path'}),
-                )
-                self.s3_resource = boto3.resource(
-                    's3',
-                    aws_access_key_id='key_id',
-                    aws_secret_access_key='secret_key',
-                    endpoint_url=endpoint_url,
-                    config=Config(s3={'addressing_style': 'path'}),
-                )
-                
-                _ensure_bucket_exists(self.s3, settings.AWS_S3_SOURCE_BUCKET)
-                _ensure_bucket_exists(self.s3, settings.AWS_S3_EXPORT_BUCKET)
-                _ensure_bucket_exists(self.s3, settings.AWS_S3_BUILDS_BUCKET)
+                self.supports_acl = True
 
             self.bucket_names = {
                 'source': settings.AWS_S3_SOURCE_BUCKET,
@@ -128,9 +149,9 @@ def delete_file(bucket_name, path):
 @_requires_aws
 def save_file(bucket_name, path, value, public=False, content_type='application/octet-stream'):
     bucket_n = _buckets[bucket_name]
-    
+
     extra_args = {'ContentType': content_type}
-    if public:
+    if public and _buckets.supports_acl:
         extra_args['ACL'] = 'public-read'
     
     if isinstance(value, str):
@@ -148,9 +169,9 @@ def save_file(bucket_name, path, value, public=False, content_type='application/
 def upload_file(bucket_name, dest_path, src_path, public=False, content_type='application/octet-stream',
                 download_filename=None):
     bucket_n = _buckets[bucket_name]
-    
+
     extra_args = {'ContentType': content_type}
-    if public:
+    if public and _buckets.supports_acl:
         extra_args['ACL'] = 'public-read'
     
     if download_filename is not None:

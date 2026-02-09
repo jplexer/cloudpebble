@@ -4,9 +4,9 @@ from django.views.i18n import JavaScriptCatalog
 from ide.api import proxy_keen, check_task, get_shortlink, heartbeat
 from ide.api.git import github_push, github_pull, set_project_repo, create_project_repo
 from ide.api.phone import ping_phone, check_phone, list_phones, update_phone
-from ide.api.project import project_info, compile_project, last_build, build_history, build_log, create_project, \
-    save_project_settings, save_project_dependencies, delete_project, begin_export, import_zip, import_github, do_import_gist, \
-    get_projects
+from ide.api.project import project_info, compile_project, last_build, build_history, build_log, build_download, \
+    create_project, save_project_settings, save_project_dependencies, delete_project, begin_export, import_zip, \
+    import_github, do_import_gist, get_projects
 from ide.api.resource import create_resource, resource_info, delete_resource, update_resource, show_resource, \
     delete_variant
 from ide.api.source import create_source_file, load_source_file, source_file_is_safe, save_source_file, \
@@ -48,6 +48,7 @@ urlpatterns = [
     re_path(r'^project/(?P<project_id>\d+)/build/history', build_history, name='get_build_history'),
     re_path(r'^project/(?P<project_id>\d+)/analytics', proxy_keen, name='proxy_analytics'),
     re_path(r'^project/(?P<project_id>\d+)/build/(?P<build_id>\d+)/log', build_log, name='get_build_log'),
+    re_path(r'^project/(?P<project_id>\d+)/build/(?P<build_id>\d+)/download/(?P<filename>[a-z._]+)', build_download, name='build_download'),
     re_path(r'^project/(?P<project_id>\d+)/export', begin_export, name='begin_export'),
     re_path(r'^project/(?P<project_id>\d+)/github/repo$', set_project_repo, name='set_project_repo'),
     re_path(r'^project/(?P<project_id>\d+)/github/repo/create$', create_project_repo, name='create_project_repo'),
