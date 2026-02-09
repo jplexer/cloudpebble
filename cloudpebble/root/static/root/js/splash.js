@@ -51,7 +51,35 @@ $(function() {
         }).then(function() {
             location.href = '/ide/';
         }).catch(function(error) {
-            if (error.code !== 'auth/popup-closed-by-user') {
+            if (error.code === 'auth/account-exists-with-different-credential') {
+                var pendingCred = error.credential;
+                var email = error.customData.email;
+                return firebase.auth().fetchSignInMethodsForEmail(email).then(function(methods) {
+                    var originalProvider;
+                    var method = methods[0];
+                    if (method === 'google.com') {
+                        originalProvider = new firebase.auth.GoogleAuthProvider();
+                    } else if (method === 'github.com') {
+                        originalProvider = new firebase.auth.GithubAuthProvider();
+                    } else if (method === 'apple.com') {
+                        originalProvider = new firebase.auth.OAuthProvider('apple.com');
+                    } else {
+                        throw new Error('Unsupported provider: ' + method);
+                    }
+                    originalProvider.setCustomParameters({login_hint: email});
+                    return firebase.auth().signInWithPopup(originalProvider);
+                }).then(function(result) {
+                    return result.user.linkWithCredential(pendingCred);
+                }).then(function(result) {
+                    return result.user.getIdToken();
+                }).then(function(idToken) {
+                    return Ajax.Post('/accounts/api/firebase-login', {
+                        id_token: idToken
+                    });
+                }).then(function() {
+                    location.href = '/ide/';
+                });
+            } else if (error.code !== 'auth/popup-closed-by-user') {
                 alert(error.message || error);
             }
         }).finally(function() {
