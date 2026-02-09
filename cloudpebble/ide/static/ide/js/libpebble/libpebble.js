@@ -941,6 +941,12 @@ Pebble.version_to_platform = function(version) {
         12: 'diorite',
         13: 'emery',
         14: 'diorite',
+        15: 'flint',
+        16: 'emery',
+        17: 'emery',
+        18: 'emery',
+        19: 'gabbro',
+        20: 'gabbro',
         0xFF: 'aplite',
         0xFE: 'aplite',
         0xFD: 'basalt',
@@ -948,7 +954,13 @@ Pebble.version_to_platform = function(version) {
         0xFB: 'chalk',
         0xFA: 'diorite',
         0xF9: 'emery',
-        0xF8: 'diorite'
+        0xF8: 'diorite',
+        0xF7: 'emery',
+        0xF6: 'flint',
+        0xF5: 'emery',
+        0xF4: 'emery',
+        0xF3: 'emery',
+        0xF2: 'gabbro'
     };
     return mapping[version.running.platform_version];
 };
