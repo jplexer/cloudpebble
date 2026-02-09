@@ -119,6 +119,17 @@ CloudPebble.Compile = (function() {
         });
     };
 
+    var updatePhoneHelpText = function(connType) {
+        if (!pane) return;
+        if (connType === 'devconn') {
+            pane.find('.phone-help-github').hide();
+            pane.find('.phone-help-devconn').show();
+        } else {
+            pane.find('.phone-help-github').show();
+            pane.find('.phone-help-devconn').hide();
+        }
+    };
+
     var pane = null;
     var init = function() {
         pane = $('#compilation-pane-template').clone();
@@ -174,6 +185,17 @@ CloudPebble.Compile = (function() {
         pane.find('#show-qemu-logs-btn').click(function(e) {
             e.preventDefault();
             show_app_logs(ConnectionType.Qemu);
+        });
+
+        // Phone connection type dropdown
+        var phoneConnSelect = pane.find('#phone-connection-type');
+        var savedConnType = localStorage['phoneConnectionType'] || 'github';
+        phoneConnSelect.val(savedConnType);
+        updatePhoneHelpText(savedConnType);
+        phoneConnSelect.on('change', function() {
+            var val = $(this).val();
+            localStorage['phoneConnectionType'] = val;
+            updatePhoneHelpText(val);
         });
 
         var targetTabs = pane.find('#run-target-tabs');

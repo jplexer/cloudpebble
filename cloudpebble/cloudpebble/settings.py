@@ -397,6 +397,8 @@ TYPOGRAPHY_CSS = _environ.get('TYPOGRAPHY_CSS', None)
 
 LIBPEBBLE_PROXY = _environ.get('LIBPEBBLE_PROXY', None)
 
+CLOUDPEBBLE_PROXY = _environ.get('CLOUDPEBBLE_PROXY', 'wss://cloudpebble-proxy.repebble.com/tool')
+
 YCM_URLS = _environ.get('YCM_URLS', 'http://localhost:8002/').split(',')
 COMPLETION_CERTS = _environ.get('COMPLETION_CERTS', os.getcwd() + '/completion-certs.crt')
 

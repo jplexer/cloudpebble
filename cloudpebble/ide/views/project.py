@@ -38,12 +38,18 @@ def view_project(request, project_id):
         token = request.user.social_auth.get(provider='pebble').extra_data['access_token']
     except:
         token = ''
+    try:
+        github_token = request.user.github.token
+    except:
+        github_token = ''
     return render(request, 'ide/project.html', {
         'project': project,
         'app_keys': app_keys,
         'font_css': settings.TYPOGRAPHY_CSS,
         'libpebble_proxy': json.dumps(settings.LIBPEBBLE_PROXY),
+        'cloudpebble_proxy': json.dumps(settings.CLOUDPEBBLE_PROXY),
         'token': token,
+        'github_token': github_token,
         'phone_shorturl': settings.PHONE_SHORTURL,
         'supported_platforms': project.supported_platforms,
         'regexes': regexes,

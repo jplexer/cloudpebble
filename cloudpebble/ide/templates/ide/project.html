@@ -551,13 +551,15 @@ var USER_SETTINGS = {
     {% if project.owner.github and project.owner.github.token %}
     github: {
         username: "{{ project.owner.github.username }}",
-        avatar: "{{ project.owner.github.avatar }}"
+        avatar: "{{ project.owner.github.avatar }}",
+        token: "{{ github_token }}"
     },
     {% endif %}
     token: "{{ token }}"
 };
 var DOC_JSON = "{% static 'ide/documentation.json' %}";
 var LIBPEBBLE_PROXY = {{ libpebble_proxy | safe }};
+var CLOUDPEBBLE_PROXY = {{ cloudpebble_proxy | safe }};
 var REGEXES = _.mapObject(JSON.parse('{{regexes_json|escapejs}}'), function(v) { return new RegExp(v)});
 
 </script>

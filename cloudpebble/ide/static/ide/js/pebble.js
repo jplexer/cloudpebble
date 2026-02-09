@@ -246,11 +246,23 @@ var SharedPebble = new (function() {
     };
 
     function getWebsocketURL() {
-        return (mConnectionType & ConnectionType.Qemu)? mEmulator.getWebsocketURL() : LIBPEBBLE_PROXY;
+        if (mConnectionType & ConnectionType.Qemu) {
+            return mEmulator.getWebsocketURL();
+        }
+        if (localStorage['phoneConnectionType'] === 'devconn') {
+            return LIBPEBBLE_PROXY;
+        }
+        return CLOUDPEBBLE_PROXY;
     }
 
     function getToken() {
-        return (mConnectionType & ConnectionType.Qemu) ? mEmulator.getToken() : USER_SETTINGS.token;
+        if (mConnectionType & ConnectionType.Qemu) {
+            return mEmulator.getToken();
+        }
+        if (localStorage['phoneConnectionType'] === 'devconn') {
+            return USER_SETTINGS.token;
+        }
+        return USER_SETTINGS.github ? USER_SETTINGS.github.token : '';
     }
 
     function pickElement(elements) {

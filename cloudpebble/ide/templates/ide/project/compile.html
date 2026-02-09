@@ -12,6 +12,15 @@
                     <div id="run-device" class="tab-pane">
                         <div class="control-group text-center">
                             <p>
+                                <select id="phone-connection-type" style="margin-bottom: 10px;">
+                                    <option value="github">{% trans 'Cloud Dev Connection' %}</option>
+                                    <option value="devconn">{% trans 'Local Dev Connection' %}</option>
+                                </select>
+                            </p>
+                            <p class="phone-help-github">
+                                {% blocktrans %}In Pebble mobile app, go to Devices and enable the Dev Connection{% endblocktrans %}
+                            </p>
+                            <p class="phone-help-devconn" style="display: none;">
                                 {% blocktrans %}Make sure that the Developer Connection is enabled on your phone, and you are
         running at least phone app version 2.5 (iOS) or 2.1 (Android).{% endblocktrans %}
                             </p>

@@ -133,7 +133,7 @@ def create_project_repo(request, project_id):
     repo = ide.git.create_repo(request.user, repo, description)
 
     project.github_repo = repo.full_name
-    project.github_branch = "master"
+    project.github_branch = "main"
     project.github_last_sync = None
     project.github_last_commit = None
     project.save()
