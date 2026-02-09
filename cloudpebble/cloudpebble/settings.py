@@ -339,11 +339,19 @@ if TESTING:
 REDIS_URL = _environ.get('REDIS_URL', None) or _environ.get('REDISCLOUD_URL', 'redis://redis:6379')
 
 # Celery 5.x configuration
-CELERY_BROKER_URL = REDIS_URL + '/1'
+if REDIS_URL.startswith('rediss://'):
+    CELERY_BROKER_URL = REDIS_URL
+else:
+    CELERY_BROKER_URL = REDIS_URL + '/1'
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_ACCEPT_CONTENT = ['pickle']
 CELERY_TASK_SERIALIZER = 'pickle'
 CELERY_RESULT_SERIALIZER = 'pickle'
+
+if REDIS_URL.startswith('rediss://'):
+    import ssl
+    CELERY_BROKER_USE_SSL = {'ssl_cert_reqs': ssl.CERT_REQUIRED}
+    CELERY_REDIS_BACKEND_USE_SSL = {'ssl_cert_reqs': ssl.CERT_REQUIRED}
 
 CELERY_TASK_TIME_LIMIT = int(_environ.get('CELERYD_TASK_TIME_LIMIT', 620))
 CELERY_TASK_SOFT_TIME_LIMIT = int(_environ.get('CELERYD_TASK_SOFT_TIME_LIMIT', 600))
