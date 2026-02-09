@@ -22,5 +22,6 @@ class Dependency(IdeModel):
     version = models.CharField(max_length=2000, validators=[validate_dependency_version])
 
     class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_dependencies'
         unique_together = (('project', 'name'),)
 

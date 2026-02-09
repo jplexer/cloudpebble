@@ -87,6 +87,7 @@ class ResourceFile(IdeModel):
             return self.variants.all()[0].root_path
 
     class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_resource_files'
         unique_together = (('project', 'file_name'),)
 
 
@@ -198,6 +199,7 @@ class ResourceVariant(S3File):
     root_path = property(get_root_path)
 
     class Meta(S3File.Meta):
+        db_table = 'cloudpebble_resource_variants'
         unique_together = (('resource_file', 'tags'),)
 
 
@@ -251,6 +253,9 @@ class ResourceIdentifier(IdeModel):
         if with_id:
             d['id'] = self.resource_id
         return d
+
+    class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_resource_identifiers'
 
     def save(self, *args, **kwargs):
         self.resource_file.project.last_modified = now()
@@ -343,4 +348,5 @@ class SourceFile(TextFile):
             Exception("Invalid file type in project")
 
     class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_source_files'
         unique_together = (('project', 'file_name', 'target'),)

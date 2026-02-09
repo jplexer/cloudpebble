@@ -28,7 +28,7 @@ class Project(IdeModel):
         ('pebblejs', _('Pebble.js (beta)')),
         ('package', _('Pebble Package')),
         ('rocky', _('Rocky.js')),
-        ('alloy', _('Alloy (beta)')),
+        ('alloy', _('JavaScript SDK (beta)')),
     )
     project_type = models.CharField(max_length=10, choices=PROJECT_TYPES, default='native')
 
@@ -74,7 +74,7 @@ class Project(IdeModel):
     github_hook_uuid = models.CharField(max_length=36, blank=True, null=True)
     github_hook_build = models.BooleanField(default=False)
 
-    project_dependencies = models.ManyToManyField("Project")
+    project_dependencies = models.ManyToManyField("Project", db_table='cloudpebble_project_dependencies')
 
     def __init__(self, *args, **kwargs):
         super(IdeModel, self).__init__(*args, **kwargs)
@@ -266,6 +266,9 @@ class Project(IdeModel):
             if not self.app_modern_multi_js:
                 raise ValidationError(_("Alloy projects must use CommonJS-style JS Handling."))
 
+    class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_projects'
+
     last_build = property(get_last_build)
     menu_icon = property(get_menu_icon)
 
@@ -282,6 +285,9 @@ class TemplateProject(Project):
     )
 
     template_kind = models.IntegerField(choices=KIND_CHOICES, db_index=True)
+
+    class Meta(Project.Meta):
+        db_table = 'cloudpebble_template_projects'
 
     def copy_into_project(self, project):
         uuid_string = ", ".join(["0x%02X" % ord(b) for b in uuid.uuid4().bytes])

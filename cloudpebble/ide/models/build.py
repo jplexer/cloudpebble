@@ -140,6 +140,9 @@ class BuildResult(IdeModel):
         else:
             s3.save_file('builds', self.simplyjs, javascript, public=True, content_type='text/javascript')
 
+    class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_build_results'
+
     def get_sizes(self):
         sizes = {}
         for size in self.sizes.all():
@@ -161,3 +164,6 @@ class BuildSize(IdeModel):
     binary_size = models.IntegerField(blank=True, null=True)
     resource_size = models.IntegerField(blank=True, null=True)
     worker_size = models.IntegerField(blank=True, null=True)
+
+    class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_build_sizes'

@@ -44,6 +44,9 @@ class UserSettings(IdeModel):
         (False, _('Using tabs')),
     )
 
+    class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_user_settings'
+
     def __unicode__(self):
         return self.user.name
 
@@ -68,3 +71,6 @@ class UserGithub(IdeModel):
     nonce = models.CharField(max_length=36, null=True, blank=True)
     username = models.CharField(max_length=50, null=True, blank=True)
     avatar = models.CharField(max_length=255, null=True, blank=True)
+
+    class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_user_github'

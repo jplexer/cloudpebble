@@ -38,6 +38,7 @@ services:
       - GITHUB_ID=${GITHUB_ID:-}
       - GITHUB_SECRET=${GITHUB_SECRET:-}
       - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL:-}
 
   celery:
     build: cloudpebble/
@@ -54,6 +55,7 @@ services:
       - GITHUB_ID=${GITHUB_ID:-}
       - GITHUB_SECRET=${GITHUB_SECRET:-}
       - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL:-}
 
   qemu:
     build: cloudpebble-qemu-controller/
