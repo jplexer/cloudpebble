@@ -1,4 +1,3 @@
-import base64
 import json
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
@@ -42,17 +41,13 @@ def git_verify_tokens(user):
     if token is None:
         return False
 
-    auth_string = base64.encodestring('%s:%s' %
-                                      (settings.GITHUB_CLIENT_ID, settings.GITHUB_CLIENT_SECRET)).replace('\n', '')
-    r = Request('https://api.github.com/applications/%s/tokens/%s' % (settings.GITHUB_CLIENT_ID, token))
-    r.add_header("Authorization", "Basic %s" % auth_string)
+    r = Request('https://api.github.com/user')
+    r.add_header("Authorization", "token %s" % token)
     try:
-        json.loads(urlopen(r).read())
+        urlopen(r).read()
     except HTTPError as e:
-        # No such token
-        if e.getcode() == 404:
-            github = user.github
-            github.delete()
+        if e.getcode() == 401:
+            user.github.delete()
         return False
     return True
 

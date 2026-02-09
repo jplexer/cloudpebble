@@ -34,6 +34,8 @@ services:
       - LIBPEBBLE_PROXY=wss://cloudpebble-ws.herokuapp.com/tool
       - PEBBLE_AUTH_URL=https://auth.rebble.io
       - FIREBASE_PROJECT_ID=coreapp-ce061
+      - GITHUB_ID=${GITHUB_ID:-}
+      - GITHUB_SECRET=${GITHUB_SECRET:-}
 
   celery:
     build: cloudpebble/
@@ -47,6 +49,8 @@ services:
       - AWS_ENABLED=yes
       - EXPORT_ROOT=http://web:80/export.cloudpebble.net/
       - AWS_S3_FAKE_S3=s3:4569
+      - GITHUB_ID=${GITHUB_ID:-}
+      - GITHUB_SECRET=${GITHUB_SECRET:-}
 
   qemu:
     build: cloudpebble-qemu-controller/
