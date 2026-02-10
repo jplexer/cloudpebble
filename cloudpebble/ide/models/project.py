@@ -33,10 +33,10 @@ class Project(IdeModel):
     project_type = models.CharField(max_length=10, choices=PROJECT_TYPES, default='native')
 
     SDK_VERSIONS = (
-        ('2', _('SDK 2 (obsolete)')),
-        ('3', _('SDK 4 beta')),
+        ('4.9.121-1-moddable', _('SDK 4.9.121 (Moddable)')),
+        ('4.9.77', _('SDK 4.9.77')),
     )
-    sdk_version = models.CharField(max_length=6, choices=SDK_VERSIONS, default='2')
+    sdk_version = models.CharField(max_length=32, choices=SDK_VERSIONS, default='4.9.121-1-moddable')
 
     # New settings for 2.0
     app_uuid = models.CharField(max_length=36, blank=True, null=True, default=generate_half_uuid, validators=regexes.validator('uuid', _('Invalid UUID.')))
@@ -78,11 +78,9 @@ class Project(IdeModel):
 
     def __init__(self, *args, **kwargs):
         super(IdeModel, self).__init__(*args, **kwargs)
-        # For SDK3+, default to array-based message keys.
-        if self.sdk_version != '2' and self.app_keys == '{}':
+        # Default to array-based message keys.
+        if self.app_keys == '{}':
             self.app_keys = '[]'
-        if self.sdk_version == '2':
-            self.app_modern_multi_js = False
         if self.project_type == 'package' and self.app_version_label == '1.0':
             self.app_version_label = '1.0.0'
 
@@ -200,11 +198,9 @@ class Project(IdeModel):
     def supported_platforms(self):
         if self.project_type == 'alloy':
             return ["emery", "gabbro"]
-        supported_platforms = ["aplite"]
-        if self.sdk_version != '2':
-            supported_platforms.extend(["basalt", "chalk", "gabbro"])
-            if self.project_type != 'pebblejs':
-                supported_platforms.extend(["diorite", "emery", "flint"])
+        supported_platforms = ["aplite", "basalt", "chalk", "gabbro"]
+        if self.project_type != 'pebblejs':
+            supported_platforms.extend(["diorite", "emery", "flint"])
         return supported_platforms
 
     @property
@@ -234,9 +230,6 @@ class Project(IdeModel):
             return None
 
     def clean(self):
-        is_sdk_2 = self.sdk_version == "2"
-        if is_sdk_2 and self.uses_array_message_keys:
-            raise ValidationError(_("SDK2 appKeys must be an object, not a list."))
         if self.project_type != 'package':
             try:
                 parse_sdk_version(self.app_version_label)
@@ -247,20 +240,14 @@ class Project(IdeModel):
                 parse_semver(self.app_version_label)
             except ValueError:
                 raise ValidationError(_("Invalid version string. Versions should be major.minor.patch"))
-            if is_sdk_2:
-                raise ValidationError(_("Packages are not available for SDK 2"))
             if not self.app_modern_multi_js:
                 raise ValidationError(_("Packages must use CommonJS-style JS Handling."))
         elif self.project_type == 'rocky':
-            if is_sdk_2:
-                raise ValidationError(_("RockyJS is not available for SDK 2"))
             if not self.uses_array_message_keys:
                 raise ValidationError(_("RockyJS projects must use array based appmessage keys"))
             if not self.app_modern_multi_js:
                 raise ValidationError(_("RockyJS projects must use CommonJS-style JS Handling."))
         elif self.project_type == 'alloy':
-            if is_sdk_2:
-                raise ValidationError(_("Alloy is not available for SDK 2"))
             if not self.uses_array_message_keys:
                 raise ValidationError(_("Alloy projects must use array based appmessage keys"))
             if not self.app_modern_multi_js:

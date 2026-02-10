@@ -36,6 +36,7 @@ services:
       - MEDIA_URL=${PUBLIC_URL}/s3builds/
       - QEMU_URLS=${PUBLIC_URL}/
       - YCM_URLS=http://ycmd:80/
+      - YCMD_PUBLIC_URL=${YCMD_PUBLIC_URL:-}
       - PUBLIC_URL=${PUBLIC_URL}/
       - EXPECT_SSL=${EXPECT_SSL:-no}
       - LIBPEBBLE_PROXY=wss://cloudpebble-ws.herokuapp.com/tool
