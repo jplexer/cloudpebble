@@ -339,17 +339,6 @@ if TESTING:
 
 REDIS_URL = _environ.get('REDIS_URL', None) or _environ.get('REDISCLOUD_URL', 'redis://redis:6379')
 
-# Sessions: use Redis so web replicas are stateless and can scale horizontally
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': REDIS_URL,
-    }
-}
-
 # Celery 5.x configuration
 if REDIS_URL.startswith('rediss://'):
     CELERY_BROKER_URL = REDIS_URL
