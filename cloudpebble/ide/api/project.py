@@ -467,8 +467,10 @@ def _serialize_build(build, project):
     if getattr(settings, 'AWS_S3_ENDPOINT_URL', None):
         download_file = 'package.tar.gz' if project.project_type == 'package' else 'watchface.pbw'
         download = '/ide/project/%d/build/%d/download/%s' % (project.id, build.id, download_file)
+        log = '/ide/project/%d/build/%d/log' % (project.id, build.id)
     else:
         download = build.package_url if project.project_type == 'package' else build.pbw_url
+        log = build.build_log_url
     return {
         'uuid': build.uuid,
         'state': build.state,
@@ -476,7 +478,7 @@ def _serialize_build(build, project):
         'finished': str(build.finished) if build.finished else None,
         'id': build.id,
         'download': download,
-        'log': build.build_log_url,
+        'log': log,
         'build_dir': build.get_url(),
         'sizes': build.get_sizes(),
     }

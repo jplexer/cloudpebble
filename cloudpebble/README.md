@@ -1,7 +1,7 @@
 CloudPebble
 ===========
 
-CloudPebble is a web-based IDE for Pebble development. Email [cloudpebble@getpebble.com][support] for questions or
+CloudPebble is a web-based IDE for Pebble development. Email [info@repebble.com][support] for questions or
 support.
 
 Getting Started
@@ -26,4 +26,4 @@ logical sense. Please avoid commits that fix typos in prior commits.
 If a change is a significant amount of work, it would probably be worth creating an issue to discuss it first. Pull
 requests are not automatically accepted (though they usually are).
 
-[support]: mailto:cloudpebble@getpebble.com
+[support]: mailto:info@repebble.com

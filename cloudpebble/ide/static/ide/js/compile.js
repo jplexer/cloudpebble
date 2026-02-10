@@ -657,7 +657,7 @@ CloudPebble.Compile = (function() {
                         if(CloudPebble.ProjectInfo.sdk_version != '2' && version_string.substr(0, 3) == "v2.") {
                             fmt = gettext("Please <a href='%(update_url)s' target='_blank'>update your Pebble</a> to firmware %(min_version)s to install apps from CloudPebble (you're on version %(real_version)s).");
                             str = interpolate(fmt, {
-                                update_url: "https://help.getpebble.com/customer/portal/articles/2256017",
+                                update_url: "https://developer.repebble.com",
                                 min_version: min_version,
                                 real_version: version_string
                             }, true);

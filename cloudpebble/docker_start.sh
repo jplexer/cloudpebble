@@ -5,12 +5,16 @@ sleep 1
 PYTHON=/usr/local/bin/python
 
 if [ ! -z "$RUN_WEB" ]; then
-	# Make sure the database is up to date.
-	echo "Performing database migration."
-	$PYTHON manage.py migrate --noinput
-	$PYTHON manage.py migrate
-
-	$PYTHON manage.py runserver 0.0.0.0:$PORT
+	if [ ! -z "$RUN_MIGRATE" ]; then
+		echo "Performing database migration."
+		$PYTHON manage.py migrate --noinput
+	fi
+	$PYTHON manage.py collectstatic --noinput 2>/dev/null || true
+	if [ ! -z "$DEBUG" ]; then
+		$PYTHON manage.py runserver 0.0.0.0:$PORT
+	else
+		gunicorn -c gunicorn.py cloudpebble.wsgi --bind 0.0.0.0:$PORT
+	fi
 elif [ ! -z "$RUN_CELERY" ]; then
 	sleep 2
 	C_FORCE_ROOT=true /usr/local/bin/celery -A cloudpebble worker --loglevel=info

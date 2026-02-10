@@ -62,10 +62,13 @@ def _spin_up_server(request):
             if result.ok:
                 response = result.json()
                 if response['success']:
-                    # Use PUBLIC_URL for the WebSocket URL returned to the browser
-                    public_url = getattr(settings, 'PUBLIC_URL', server)
-                    public_ycm = public_url.rstrip('/') + '/ycmd/'
-                    secure = public_url.startswith('https')
+                    # Use YCMD_PUBLIC_URL if set, otherwise derive from PUBLIC_URL
+                    if getattr(settings, 'YCMD_PUBLIC_URL', None):
+                        public_ycm = settings.YCMD_PUBLIC_URL.rstrip('/') + '/'
+                    else:
+                        public_url = getattr(settings, 'PUBLIC_URL', server)
+                        public_ycm = public_url.rstrip('/') + '/ycmd/'
+                    secure = public_ycm.startswith('https')
                     scheme = "wss" if secure else "ws"
                     ws_server = urlparse(public_ycm)._replace(scheme=scheme).geturl()
                     return {

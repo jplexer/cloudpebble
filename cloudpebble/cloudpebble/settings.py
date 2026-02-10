@@ -181,8 +181,9 @@ TEMPLATE_LOADERS = (
 #     'django.template.loaders.eggs.Loader',
 )
 
-if not DEBUG:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.CachedStaticFilesStorage'
+# dj-static/Cling serves static files directly from STATIC_ROOT, no hashing needed
+# if not DEBUG:
+#     STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
 
 MIDDLEWARE = (
@@ -338,6 +339,17 @@ if TESTING:
 
 REDIS_URL = _environ.get('REDIS_URL', None) or _environ.get('REDISCLOUD_URL', 'redis://redis:6379')
 
+# Sessions: use Redis so web replicas are stateless and can scale horizontally
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+    }
+}
+
 # Celery 5.x configuration
 if REDIS_URL.startswith('rediss://'):
     CELERY_BROKER_URL = REDIS_URL
@@ -409,9 +421,11 @@ LIBPEBBLE_PROXY = _environ.get('LIBPEBBLE_PROXY', None)
 CLOUDPEBBLE_PROXY = _environ.get('CLOUDPEBBLE_PROXY', 'wss://cloudpebble-proxy.repebble.com/tool')
 
 YCM_URLS = _environ.get('YCM_URLS', 'http://localhost:8002/').split(',')
+YCMD_PUBLIC_URL = _environ.get('YCMD_PUBLIC_URL', None) or None
 COMPLETION_CERTS = _environ.get('COMPLETION_CERTS', os.getcwd() + '/completion-certs.crt')
 
 QEMU_URLS = _environ.get('QEMU_URLS', 'http://qemu/').split(',')
+QEMU_PUBLIC_URL = _environ.get('QEMU_PUBLIC_URL', None) or None
 QEMU_LAUNCH_AUTH_HEADER = _environ.get('QEMU_LAUNCH_AUTH_HEADER', 'secret')
 QEMU_LAUNCH_TIMEOUT = int(_environ.get('QEMU_LAUNCH_TIMEOUT', 25))
 

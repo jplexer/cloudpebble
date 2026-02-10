@@ -70,12 +70,21 @@ def launch_emulator(request):
                                    timeout=settings.QEMU_LAUNCH_TIMEOUT, verify=False)
             result.raise_for_status()
             response = result.json()
-            url = urlparse.urlsplit(server)
-            response['host'] = url.hostname
-            response['secure'] = (url.scheme == 'https')
-            response['api_port'] = url.port or (443 if url.scheme == 'https' else 80)
-            response['ping_url'] = '%sqemu/%s/ping' % (server, response['uuid'])
-            response['kill_url'] = '%sqemu/%s/kill' % (server, response['uuid'])
+            if settings.QEMU_PUBLIC_URL:
+                public = urlparse.urlsplit(settings.QEMU_PUBLIC_URL)
+                response['host'] = public.hostname
+                response['secure'] = (public.scheme == 'https')
+                response['api_port'] = public.port or (443 if public.scheme == 'https' else 80)
+                base = settings.QEMU_PUBLIC_URL.rstrip('/') + '/'
+                response['ping_url'] = '%sqemu/%s/ping' % (base, response['uuid'])
+                response['kill_url'] = '%sqemu/%s/kill' % (base, response['uuid'])
+            else:
+                url = urlparse.urlsplit(server)
+                response['host'] = url.hostname
+                response['secure'] = (url.scheme == 'https')
+                response['api_port'] = url.port or (443 if url.scheme == 'https' else 80)
+                response['ping_url'] = '%sqemu/%s/ping' % (server, response['uuid'])
+                response['kill_url'] = '%sqemu/%s/kill' % (server, response['uuid'])
             response['token'] = token
             redis_client.set(redis_key, json.dumps(response))
             return response
