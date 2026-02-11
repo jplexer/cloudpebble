@@ -372,9 +372,7 @@ def generate_wscript_file(project, for_export=False):
         return generate_wscript_file_rocky(project, for_export)
     elif project.project_type == 'alloy':
         return generate_wscript_file_alloy(project, for_export)
-    elif project.sdk_version == '2':
-        return generate_wscript_file_sdk2(project, for_export)
-    elif project.sdk_version == '3':
+    else:
         return generate_wscript_file_sdk3(project, for_export)
 
 

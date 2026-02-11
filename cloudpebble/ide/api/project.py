@@ -570,10 +570,10 @@ def create_project(request):
         template_id = int(template_id)
     project_type = request.POST.get('type', 'native')
     template_name = None
-    sdk_version = str(request.POST.get('sdk', '2'))
+    sdk_version = str(request.POST.get('sdk', '4.9.121-1-moddable'))
     try:
         with transaction.atomic():
-            app_keys = '{}' if sdk_version == '2' else '[]'
+            app_keys = '[]'
             project = Project.objects.create(
                 name=name,
                 owner=request.user,

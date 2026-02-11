@@ -146,9 +146,6 @@ CloudPebble.YCM = new (function() {
         }
         mIsInitialising = true;
         var platforms = (CloudPebble.ProjectInfo.app_platforms || 'aplite,basalt');
-        if(CloudPebble.ProjectInfo.sdk_version == '2') {
-            platforms = 'aplite';
-        }
         var sdk_version = CloudPebble.ProjectInfo.sdk_version;
         var spinup_data;
         mInitPromise = Ajax.Post('/ide/project/' + PROJECT_ID + '/autocomplete/init', {platforms: platforms, sdk: sdk_version})

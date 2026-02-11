@@ -31,10 +31,6 @@ CloudPebble.Settings = (function() {
         if(!(CloudPebble.ProjectProperties.supports_jslint)) {
             pane.find('.supports-jslint').hide();
         }
-        if(CloudPebble.ProjectInfo.sdk_version != '3') {
-            pane.find('.sdk3-only').hide();
-        }
-
         // Embedded JS projects (alloy) can only target emery and gabbro
         var has_embeddedjs = CloudPebble.ProjectInfo.has_embeddedjs ||
             _.some(CloudPebble.Editor.GetAllFiles(), function(f) { return f.target == 'embeddedjs'; });
@@ -135,7 +131,7 @@ CloudPebble.Settings = (function() {
             }
 
 
-            if(sdk_version == '3' && !(build_aplite || build_basalt || build_chalk || build_diorite || build_emery || build_gabbro || build_flint)) {
+            if(!(build_aplite || build_basalt || build_chalk || build_diorite || build_emery || build_gabbro || build_flint)) {
                 throw new Error(gettext("You must build your app for at least one platform."));
             }
 
@@ -226,7 +222,6 @@ CloudPebble.Settings = (function() {
                 CloudPebble.ProjectInfo.sdk_version = sdk_version;
                 CloudPebble.ProjectInfo.app_modern_multi_js = app_modern_multi_js;
 
-                pane.find('#settings-sdk-version option[value=2]').prop('disabled', CloudPebble.ProjectInfo.sdk_version != '2');
                 $('.project-name').text(name);
                 window.document.title = "CloudPebble – " + name;
 
@@ -326,26 +321,6 @@ CloudPebble.Settings = (function() {
             var is_array_kind = $(this).val() == '1';
             reset_appkey_table_values(is_array_kind);
             configure_appkey_table(is_array_kind);
-        });
-
-        var sdk_version_change_confirmed = false;
-        pane.find('#settings-sdk-version').change(function(e) {
-            // When switching away from SDK 2, show a confirmation prompt to indicate that the change is irreversible.
-            var sdk = $(this).val();
-            if (CloudPebble.ProjectInfo.sdk_version == '2' && sdk != '2' && !sdk_version_change_confirmed) {
-                e.stopPropagation();
-                $(this).val('2');
-                var message = gettext("Are you sure you want to upgrade this project to SDK 4? THIS CANNOT BE UNDONE.");
-                CloudPebble.Prompts.Confirm(gettext("UPGRADE SDK"), message, function() {
-                    sdk_version_change_confirmed = true;
-                    if(sdk == '3') {
-                        pane.find('.sdk3-only').show();
-                    } else {
-                        pane.find('.sdk3-only').hide();
-                    }
-                    $(this).val(sdk).change();
-                }.bind(this));
-            }
         });
 
         pane.find('#settings-modern-multi-js').change(function(e) {

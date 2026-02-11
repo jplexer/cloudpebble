@@ -17,9 +17,7 @@
                         <option value="png">{% trans 'PNG image (deprecated)' %}</option>
                         {% if project.is_standard_project_type %}
                             <option value="png-trans">{% trans 'PNG with transparency (deprecated)' %}</option>
-                            {% if project.sdk_version == '3' %}
-                                <option value="pbi">{% trans '1-bit Pebble image (deprecated)' %}</option>
-                            {% endif %}
+                            <option value="pbi">{% trans '1-bit Pebble image (deprecated)' %}</option>
                         {% endif %}
                     </select>
                 </div>

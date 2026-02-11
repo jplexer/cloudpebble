@@ -37,13 +37,13 @@ class TestImportProject(CloudpebbleTestCase):
         return project
 
     def test_single_C_file_defaults(self):
-        """ Check that a single C file gist is imported as a native SDK 2 project with the correct default settings """
+        """ Check that a single C file gist is imported as a native project with the correct default settings """
         project = self.runTest({
             'main.c': 'content'
         })
         expected_name = 'Sample project'
         self.assertEqual(fake_s3.read_last_file(), 'content')
-        self.assertEqual(project.sdk_version, '2')
+        self.assertEqual(project.sdk_version, '4.9.121-1-moddable')
         self.assertEqual(project.app_long_name, expected_name)
         self.assertEqual(project.app_version_label, '1.0')
         self.assertEqual(project.name, expected_name)
@@ -55,14 +55,14 @@ class TestImportProject(CloudpebbleTestCase):
         self.assertEqual(project.app_modern_multi_js, False)
 
     def test_gist_with_appinfo_defaults(self):
-        """ Check that a gist with an appinfo.json can set sdkVersion = 3"""
+        """ Check that a gist with an appinfo.json imports with the correct SDK version """
         project = self.runTest({
             'main.c': 'content',
             'appinfo.json': json.dumps({
                 'sdkVersion': '3'
             })
         })
-        self.assertEqual(project.sdk_version, '3')
+        self.assertEqual(project.sdk_version, '4.9.121-1-moddable')
         self.assertEqual(project.project_type, 'native')
 
     def test_simplyjs_gists(self):
@@ -101,7 +101,7 @@ class TestImportProject(CloudpebbleTestCase):
         })
         expected_name = 'Sample project'
         self.assertEqual(fake_s3.read_last_file(), 'content')
-        self.assertEqual(project.sdk_version, '3')  # This default is different to appinfo.json
+        self.assertEqual(project.sdk_version, '4.9.121-1-moddable')
         self.assertEqual(project.app_modern_multi_js, True)  # This default is different to appinfo.json
         self.assertEqual(project.app_long_name, expected_name)
         self.assertEqual(project.app_version_label, '1.0')

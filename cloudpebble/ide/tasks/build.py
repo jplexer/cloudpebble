@@ -1,3 +1,4 @@
+import fcntl
 import logging
 import os
 import resource
@@ -96,12 +97,19 @@ def run_compile(build_result):
                 output = subprocess.check_output(npm_command, stderr=subprocess.STDOUT, preexec_fn=_set_resource_limits, env=environ)
                 subprocess.check_output([settings.NPM_BINARY, "dedupe"], stderr=subprocess.STDOUT, preexec_fn=_set_resource_limits, env=environ)
 
-            # Use pebble-tool for all SDK versions
-            # pebble build handles both configure and build internally
-            command = ["pebble", "build"]
-            
-            output += subprocess.check_output(command, stderr=subprocess.STDOUT, preexec_fn=_set_resource_limits,
-                                              env=environ)
+            # Activate the correct SDK version and build.
+            # Use a file lock to prevent concurrent workers from switching SDKs mid-build.
+            PEBBLE_SDK_LOCK = '/tmp/pebble_sdk.lock'
+            with open(PEBBLE_SDK_LOCK, 'w') as lockf:
+                fcntl.flock(lockf, fcntl.LOCK_EX)
+                subprocess.check_output(
+                    ["pebble", "sdk", "activate", project.sdk_version],
+                    stderr=subprocess.STDOUT, env=environ
+                )
+                output += subprocess.check_output(
+                    ["pebble", "build"],
+                    stderr=subprocess.STDOUT, preexec_fn=_set_resource_limits, env=environ
+                )
         except subprocess.CalledProcessError as e:
             output = e.output
             logger.warning("Build command failed with error:\n%s\n", output)

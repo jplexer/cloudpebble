@@ -83,9 +83,6 @@ CloudPebble.Init = function() {
         CloudPebble.Sidebar.SetProjectType(data.type);
         CloudPebble.Ready = true;
 
-        if(CloudPebble.ProjectInfo.sdk_version != '3') {
-            $('.sdk3-only').hide();
-        }
         return null;
     }).catch(function(err) {
         alert("Something went wrong:\n" + err.message);

@@ -5,9 +5,7 @@ $(function() {
     });
     $('#project-type').change(function() {
         var val = $(this).val();
-        // TODO Packages - maybe still show templates? (and sdk version?)
         if(val == 'alloy') {
-            $('#project-sdk-version').val('3');
             $('.sdk-version').hide();
             // Show alloy-specific template dropdown (cosmetic only; backend uses project_type)
             $('#project-template').val(0).hide();
@@ -26,31 +24,12 @@ $(function() {
             $('#alloy-template').hide();
             $('#project-template').show();
             $('#template-holder').hide();
-            if (_.contains(['pebblejs', 'rocky', 'package'], val)) {
-                $('#project-sdk-version').val('3');
-            } else {
-                $('#project-sdk-version').val('2');
-            }
             $('.sdk-version').hide();
         } else {
             $('#alloy-template').hide();
             $('#project-template').show();
             $('#template-holder').show();
             $('.sdk-version').show();
-        }
-    });
-    $('#project-sdk-version').change(function() {
-        var val = $(this).val();
-        if(val == '3') {
-            $('#project-type').find('[value=simplyjs]').attr('disabled', 'disabled');
-            $('#project-type').find('[value=pebblejs]').removeAttr('disabled');
-            $('#project-type').find('[value=rocky]').removeAttr('disabled');
-            $('#project-type').find('[value=package]').removeAttr('disabled');
-        } else {
-            $('#project-type').find('[value=simplyjs]').removeAttr('disabled');
-            $('#project-type').find('[value=package]').attr('disabled', 'disabled');
-            $('#project-type').find('[value=rocky]').attr('disabled', 'disabled');
-            $('#project-type').find('[value=pebblejs]').attr('disabled', 'disabled');
         }
     });
 

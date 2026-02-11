@@ -127,10 +127,7 @@ CloudPebble.Resources = (function() {
             return (!is_new_file_well || should_include_new_file_tags);
         }).map(function(i, input) {
             // Just extract the tag numbers.
-            var tags = [];
-            if (CloudPebble.ProjectInfo.sdk_version != "2") {
-                tags = JSON.parse(input.value);
-            }
+            var tags = JSON.parse(input.value);
             if (do_sort) tags.sort();
             return [tags];
         }));
@@ -358,10 +355,6 @@ CloudPebble.Resources = (function() {
 
         // Validate the tags!
         var new_tag_values = get_new_tag_values(form, !!file, true);
-
-        if (CloudPebble.ProjectInfo.sdk_version == "2" && new_tag_values.length > 1) {
-            throw new Error(gettext("SDK 2 projects do not support multiple files per resource. Please delete extra files."));
-        }
 
         // Ensure that all variants' tags are unique
         if (_.uniq(_.map(new_tag_values, JSON.stringify)).length != new_tag_values.length) {
@@ -614,9 +607,6 @@ CloudPebble.Resources = (function() {
                         });
                     });
                 });
-                if (CloudPebble.ProjectInfo.sdk_version == '2' && resource.variants.length > 0) {
-                    pane.find('#edit-resource-new-file').hide();
-                }
                 // Only show the delete-variant buttons if there's more than one variant
                 pane.find('.btn-delvariant').toggle(resource.variants.length > 1);
             };
@@ -811,14 +801,7 @@ CloudPebble.Resources = (function() {
 
 
     var restore_pane = function(parent) {
-        if (CloudPebble.ProjectInfo.sdk_version == '2') {
-            parent.find('.colour-resource, #resource-targets-section').hide();
-        } else {
-            parent.find('.colour-resource, #resource-targets-section').show();
-        }
-        if(CloudPebble.ProjectInfo.sdk_version != '3') {
-            parent.find('.sdk3-only').hide();
-        }
+        parent.find('.colour-resource, #resource-targets-section').show();
         if(CloudPebble.ProjectInfo.type != 'native') {
             parent.find('.native-only').hide();
         }

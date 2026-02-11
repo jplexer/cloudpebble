@@ -42,7 +42,6 @@ class TestImportArchive(CloudpebbleTestCase):
         """ Check that appinfo validation is performed with a few invalid values """
         invalid_things = [
             ('projectType', 'invalid'),
-            ('sdkVersion', '1'),
             ('versionLabel', '01.0'),
         ]
         for k, v in invalid_things:
@@ -134,15 +133,6 @@ class TestImportArchive(CloudpebbleTestCase):
             })
             with self.assertRaises(ValidationError):
                 do_import_archive(self.project_id, bundle)
-
-    def test_throws_if_sdk2_project_has_array_appkeys(self):
-        """ Throw when trying to import an sdk 2 project with array appkeys """
-        bundle = build_bundle({
-            'src/main.c': '',
-            'appinfo.json': make_appinfo(options={'appKeys': [], 'sdkVersion': '2'})
-        })
-        with self.assertRaises(ValidationError):
-            do_import_archive(self.project_id, bundle)
 
     def test_invalid_resource_id(self):
         """ Check that invalid characters are banned from resource IDs """

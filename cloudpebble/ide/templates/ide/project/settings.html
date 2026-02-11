@@ -20,14 +20,14 @@
                 <label class="control-label" for="settings-sdk-version">{% trans "SDK Version" %}</label>
                 <div class="controls">
                     <select id="settings-sdk-version">
-                        <option value="2" {% if project.sdk_version == '2' %}selected{% else %}disabled{% endif %}>{% trans 'SDK 2 (obsolete)' %}</option>
-                        <option value="3" {% if project.sdk_version == '3' %}selected{% endif %}>{% trans 'SDK 4' %}</option>
+                        <option value="4.9.121-1-moddable" {% if project.sdk_version == '4.9.121-1-moddable' %}selected{% endif %}>{% trans 'SDK 4.9.121 (Moddable)' %}</option>
+                        <option value="4.9.77" {% if project.sdk_version == '4.9.77' %}selected{% endif %}>{% trans 'SDK 4.9.77' %}</option>
                     </select>
                     <span class="help-block">You should reload the page after changing and saving this setting.</span>
                 </div>
             </div>
         </div>
-        <div class="well sdk3-only">
+        <div class="well">
             <div class="control-group supports-aplite not-alloy-platform">
                 {# Translators: "Aplite" is a platform name and should be left untranslated. #}
                 <label class="control-label" for="settings-build-aplite">{% trans 'Build Aplite' %}</label>
@@ -161,11 +161,7 @@
                             <option value="">{% if project.project_type == 'native' %}{% trans 'None' %}{% else %}{% trans 'Default' %}{% endif %}</option>
                         </select>
                         <span class="help-block">
-                            {% if project.sdk_version == '2' %}
-                                {% trans "Displayed on the Pebble's main menu. Must be a 28x28 file in PNG format." %}
-                            {% else %}
-                                {% trans "Displayed on the Pebble's main menu. Must be a 25x25 file in PNG format." %}
-                            {% endif %}
+                            {% trans "Displayed on the Pebble's main menu. Must be a 25x25 file in PNG format." %}
                         </span>
                     </div>
                 </div>
@@ -206,7 +202,7 @@
                         </span>
                     </div>
                 </div>
-                <div class="control-group native-only sdk3-only">
+                <div class="control-group native-only ">
                     <label class="control-label" for="settings-modern-multi-js">{% trans 'JS Handling' %}</label>
                     <div class="controls">
                         <select id="settings-modern-multi-js">
@@ -220,7 +216,7 @@
                 </div>
             </div>
             <div class="well supports-message-keys">
-                <div class="control-group not-rocky sdk3-only">
+                <div class="control-group not-rocky ">
                     <label class="control-label" for="settings-message-key-kind">{% trans 'Message key assignment kind' %}</label>
                     <div class="controls">
                         <select id="settings-message-key-kind">

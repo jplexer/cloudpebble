@@ -42,8 +42,10 @@ RUN uv tool install pebble-tool --python 3.11
 # Ensure pebble is in PATH
 ENV PATH="/root/.local/share/uv/tools/pebble-tool/bin:$PATH"
 
-# Install the Pebble SDK (this downloads SDK + toolchain + QEMU)
+# Install Pebble SDKs (downloads SDK + toolchain + QEMU)
 RUN pebble sdk install 4.9.121-1-moddable
+RUN pebble sdk install 4.9.77
+RUN pebble sdk activate 4.9.121-1-moddable
 
 # Set up SDK paths for CloudPebble
 ENV PEBBLE_SDK_PATH=/root/.pebble-sdk

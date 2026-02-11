@@ -986,7 +986,7 @@ CloudPebble.Editor = (function() {
         function get_default_js_name() {
             // If js files don't exist for a certain target, set the name to the default
             // and hide the name input.
-            if (CloudPebble.ProjectInfo.sdk_version == '2') return null;
+            // All SDK versions support CommonJS-style JS
             var js_name_override = null;
             var required_js = [
                 {target: 'pkjs', requires: 'index.js'},

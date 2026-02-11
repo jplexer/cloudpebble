@@ -10,7 +10,7 @@ __author__ = 'katharine'
 
 
 def manifest_name_for_project(project):
-    if project.is_standard_project_type and project.sdk_version == '3':
+    if project.is_standard_project_type:
         return PACKAGE_MANIFEST
     else:
         return APPINFO_MANIFEST
@@ -18,10 +18,7 @@ def manifest_name_for_project(project):
 
 def generate_manifest(project, resources):
     if project.is_standard_project_type:
-        if project.sdk_version == '2':
-            return generate_v2_manifest(project, resources)
-        else:
-            return generate_v3_manifest(project, resources)
+        return generate_v3_manifest(project, resources)
     elif project.project_type == 'pebblejs':
         return generate_pebblejs_manifest(project, resources)
     elif project.project_type == 'simplyjs':
@@ -69,7 +66,7 @@ def generate_v3_manifest_dict(project, resources):
         'keywords': project.keywords,
         'dependencies': project.get_dependencies(),
         'pebble': {
-            'sdkVersion': project.sdk_version,
+            'sdkVersion': '3',
             'watchapp': {
                 'watchface': project.app_is_watchface
             },
@@ -95,10 +92,7 @@ def generate_v3_manifest_dict(project, resources):
 
 def generate_manifest_dict(project, resources):
     if project.is_standard_project_type:
-        if project.sdk_version == '2':
-            return generate_v2_manifest_dict(project, resources)
-        else:
-            return generate_v3_manifest_dict(project, resources)
+        return generate_v3_manifest_dict(project, resources)
     elif project.project_type == 'simplyjs':
         return generate_simplyjs_manifest_dict(project)
     elif project.project_type == 'pebblejs':
@@ -144,7 +138,7 @@ def generate_native_resource_dict(project, resources):
                 d['menuIcon'] = True
             if resource_id.compatibility is not None:
                 d['compatibility'] = resource_id.compatibility
-            if project.sdk_version == '3' and resource_id.target_platforms:
+            if resource_id.target_platforms:
                 d['targetPlatforms'] = json.loads(resource_id.target_platforms)
 
             resource_map['media'].append(d)
@@ -279,7 +273,7 @@ def load_manifest_dict(manifest, manifest_kind, default_project_type='native'):
         project['app_company_name'] = manifest['companyName']
         project['app_version_label'] = manifest['versionLabel']
         project['app_keys'] = dict_to_pretty_json(manifest.get('appKeys', {}))
-        project['sdk_version'] = manifest.get('sdkVersion', '2')
+        project['sdk_version'] = '4.9.121-1-moddable'
         project['app_modern_multi_js'] = manifest.get('enableMultiJS', False)
 
     elif manifest_kind == PACKAGE_MANIFEST:
@@ -292,7 +286,7 @@ def load_manifest_dict(manifest, manifest_kind, default_project_type='native'):
         dependencies = manifest.get('dependencies', {})
         manifest = manifest['pebble']
         project['app_modern_multi_js'] = manifest.get('enableMultiJS', True)
-        project['sdk_version'] = manifest.get('sdkVersion', '3')
+        project['sdk_version'] = '4.9.121-1-moddable'
     else:
         raise InvalidProjectArchiveException(_('Invalid manifest kind: %s') % manifest_kind[-12:])
 

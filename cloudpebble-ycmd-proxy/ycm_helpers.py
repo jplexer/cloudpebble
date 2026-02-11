@@ -30,7 +30,6 @@ class YCMProxyException(Exception):
 def spinup(content):
     root_dir = tempfile.mkdtemp()
     platforms = set(content.get('platforms', ['basalt']))
-    sdk_version = content.get('sdk', '3')
     dependencies = content.get('dependencies', {})
     messagekeys = content.get('messagekeys', [])
     resources = content.get('resources', [])
@@ -72,18 +71,12 @@ def spinup(content):
     print("created files")
     settings_path = os.path.join(root_dir, ".ycm_extra_conf.py")
 
-    conf_mapping = {
-        '2': 'ycm_extra_conf_sdk2.py',
-        '3': 'ycm_extra_conf_sdk3.py',
-    }
-    sdk_mapping = {
-        '2': settings.PEBBLE_SDK2,
-        '3': settings.PEBBLE_SDK3,
-    }
+    conf_file = 'ycm_extra_conf_sdk3.py'
+    sdk_path = settings.PEBBLE_SDK3
 
     with open(settings_path, "w") as f:
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ycm_conf', conf_mapping[sdk_version])) as template:
-            f.write(template.read().format(sdk=sdk_mapping[sdk_version], here=root_dir, stdlib=settings.STDLIB_INCLUDE_PATH))
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ycm_conf', conf_file)) as template:
+            f.write(template.read().format(sdk=sdk_path, here=root_dir, stdlib=settings.STDLIB_INCLUDE_PATH))
 
     try:
         for platform in ('aplite', 'basalt', 'chalk', 'diorite', 'gabbro', 'flint'):
