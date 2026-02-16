@@ -75,6 +75,7 @@ services:
 
   qemu:
     build: cloudpebble-qemu-controller/
+    restart: unless-stopped
     ports:
       - "80:80"
     environment:
