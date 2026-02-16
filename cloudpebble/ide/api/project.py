@@ -8,6 +8,7 @@ from django.db import transaction, IntegrityError
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from django.views.decorators.http import require_safe, require_POST
+from django.utils.translation import gettext as _
 
 from ide.models.build import BuildResult
 from ide.models.project import Project, TemplateProject
@@ -772,8 +773,12 @@ def get_projects(request):
 def import_zip(request):
     zip_file = request.FILES['archive']
     name = request.POST['name']
+    sdk = request.POST.get('sdk', '4.9.77')
+    valid_sdks = {x[0] for x in Project.SDK_VERSIONS}
+    if sdk not in valid_sdks:
+        raise BadRequest(_("Invalid SDK version."))
     try:
-        project = Project.objects.create(owner=request.user, name=name)
+        project = Project.objects.create(owner=request.user, name=name, sdk_version=sdk)
     except IntegrityError as e:
         raise BadRequest(str(e))
     task = do_import_archive.delay(project.id, zip_file.read(), delete_project=True)
@@ -788,6 +793,10 @@ def import_github(request):
     name = request.POST['name']
     repo = request.POST['repo']
     branch = request.POST['branch']
+    sdk = request.POST.get('sdk', '4.9.77')
+    valid_sdks = {x[0] for x in Project.SDK_VERSIONS}
+    if sdk not in valid_sdks:
+        raise BadRequest(_("Invalid SDK version."))
     add_remote = (request.POST['add_remote'] == 'true')
     match = re.match(r'^(?:https?://|git@|git://)?(?:www\.)?github\.com[/:]([\w.-]+)/([\w.-]+?)(?:\.git|/|$)', repo)
     if match is None:
@@ -797,7 +806,7 @@ def import_github(request):
     github_project = match.group(2)
 
     try:
-        project = Project.objects.create(owner=request.user, name=name)
+        project = Project.objects.create(owner=request.user, name=name, sdk_version=sdk)
     except IntegrityError as e:
         raise BadRequest(str(e))
 

@@ -152,6 +152,15 @@
                             <span class="help-block">{% trans "This must be a zip file containing a standard Pebble project." %}</span>
                         </div>
                     </div>
+                    <div class="control-group">
+                        <label class="control-label" for="import-zip-sdk-version">{% trans "SDK Version" %}</label>
+                        <div class="controls">
+                            <select id="import-zip-sdk-version">
+                                <option value="4.9.121-1-moddable">{% trans 'SDK 4.9.121 (Moddable)' %}</option>
+                                <option value="4.9.77" selected>{% trans 'SDK 4.9.77' %}</option>
+                            </select>
+                        </div>
+                    </div>
                 </form>
                 <div class="progress progress-striped active hide">
                     <div class="bar" style="width: 100%;"></div>
@@ -176,6 +185,15 @@
                         <label class="control-label" for="import-github-branch">{% trans "Branch (optional)" %}</label>
                         <div class="controls">
                             <input type="text" id="import-github-branch" placeholder="master" />
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label" for="import-github-sdk-version">{% trans "SDK Version" %}</label>
+                        <div class="controls">
+                            <select id="import-github-sdk-version">
+                                <option value="4.9.121-1-moddable">{% trans 'SDK 4.9.121 (Moddable)' %}</option>
+                                <option value="4.9.77" selected>{% trans 'SDK 4.9.77' %}</option>
+                            </select>
                         </div>
                     </div>
                     {% if user.github %}

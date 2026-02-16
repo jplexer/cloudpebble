@@ -69,6 +69,7 @@ $(function() {
 
     var import_archive = function(active_set) {
         var name = active_set.find('#import-zip-name').val();
+        var sdk = active_set.find('#import-zip-sdk-version').val();
         if(name.replace(/\s/g, '') === '') {
             active_set.find('.errors').removeClass('hide').text(gettext("You must specify a project name."));
             return;
@@ -87,6 +88,7 @@ $(function() {
         disable_import_controls();
         var form_data = new FormData();
         form_data.append('name', name);
+        form_data.append('sdk', sdk);
         form_data.append('archive', file);
         active_set.find('.progress').removeClass('hide');
 
@@ -119,6 +121,7 @@ $(function() {
         var name = active_set.find('#import-github-name').val();
         var url = active_set.find('#import-github-url').val();
         var branch = active_set.find('#import-github-branch').val();
+        var sdk = active_set.find('#import-github-sdk-version').val();
         var add_remote = !!active_set.find('#import-github-add-remote').is(':checked');
         if(name.replace(/\s/g, '') === '') {
             active_set.find('.errors').removeClass('hide').text(gettext("You must specify a project name."));
@@ -138,6 +141,7 @@ $(function() {
             name: name,
             repo: url,
             branch: branch,
+            sdk: sdk,
             add_remote: add_remote
         }), active_set);
         ga('send', 'event', 'project', 'import', 'github');
