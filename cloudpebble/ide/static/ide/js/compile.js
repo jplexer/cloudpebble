@@ -855,9 +855,12 @@ CloudPebble.Compile = (function() {
                     return ConnectionType.Qemu;
                 } else {
                     if (!CloudPebble.ProjectInfo.app_platforms) {
-                        return ConnectionType.QemuBasalt;
+                        return ConnectionType.QemuEmery;
                     }
-                    if (CloudPebble.ProjectInfo.app_platforms.indexOf('chalk') > -1) {
+                    if (CloudPebble.ProjectInfo.app_platforms.indexOf('emery') > -1) {
+                        return ConnectionType.QemuEmery;
+                    }
+                    else if (CloudPebble.ProjectInfo.app_platforms.indexOf('chalk') > -1) {
                         return ConnectionType.QemuChalk;
                     }
                     else if (CloudPebble.ProjectInfo.app_platforms.indexOf('basalt') > -1) {
@@ -868,9 +871,6 @@ CloudPebble.Compile = (function() {
                     }
                     else if (CloudPebble.ProjectInfo.app_platforms.indexOf('diorite') > -1) {
                         return ConnectionType.QemuDiorite;
-                    }
-                    else if(CloudPebble.ProjectInfo.app_platforms.indexOf('emery') > -1) {
-                        return ConnectionType.QemuEmery;
                     }
                     else if(CloudPebble.ProjectInfo.app_platforms.indexOf('gabbro') > -1) {
                         return ConnectionType.QemuGabbro;
