@@ -833,6 +833,34 @@ CloudPebble.Compile = (function() {
         return 0;
     };
 
+    var preferred_qemu_platform = function() {
+        if (!CloudPebble.ProjectInfo.app_platforms) {
+            return ConnectionType.QemuEmery;
+        }
+        if (CloudPebble.ProjectInfo.app_platforms.indexOf('emery') > -1) {
+            return ConnectionType.QemuEmery;
+        }
+        else if (CloudPebble.ProjectInfo.app_platforms.indexOf('chalk') > -1) {
+            return ConnectionType.QemuChalk;
+        }
+        else if (CloudPebble.ProjectInfo.app_platforms.indexOf('basalt') > -1) {
+            return ConnectionType.QemuBasalt;
+        }
+        else if (CloudPebble.ProjectInfo.app_platforms.indexOf('aplite') > -1) {
+            return ConnectionType.QemuAplite;
+        }
+        else if (CloudPebble.ProjectInfo.app_platforms.indexOf('diorite') > -1) {
+            return ConnectionType.QemuDiorite;
+        }
+        else if (CloudPebble.ProjectInfo.app_platforms.indexOf('gabbro') > -1) {
+            return ConnectionType.QemuGabbro;
+        }
+        else if (CloudPebble.ProjectInfo.app_platforms.indexOf('flint') > -1) {
+            return ConnectionType.QemuFlint;
+        }
+        return ConnectionType.QemuEmery;
+    };
+
     return {
         Show: function() {
             show_compile_pane();
@@ -851,33 +879,15 @@ CloudPebble.Compile = (function() {
             if(localStorage['activeTarget'] == 'device') {
                 return ConnectionType.Phone;
             } else {
+                var preferred_qemu = preferred_qemu_platform();
                 if(SharedPebble.isVirtual()) {
-                    return ConnectionType.Qemu;
+                    var current = SharedPebble.getPlatformName();
+                    if (current && current == ConnectionPlatformNames[preferred_qemu]) {
+                        return ConnectionType.Qemu;
+                    }
+                    return preferred_qemu;
                 } else {
-                    if (!CloudPebble.ProjectInfo.app_platforms) {
-                        return ConnectionType.QemuEmery;
-                    }
-                    if (CloudPebble.ProjectInfo.app_platforms.indexOf('emery') > -1) {
-                        return ConnectionType.QemuEmery;
-                    }
-                    else if (CloudPebble.ProjectInfo.app_platforms.indexOf('chalk') > -1) {
-                        return ConnectionType.QemuChalk;
-                    }
-                    else if (CloudPebble.ProjectInfo.app_platforms.indexOf('basalt') > -1) {
-                        return ConnectionType.QemuBasalt;
-                    }
-                    else if (CloudPebble.ProjectInfo.app_platforms.indexOf('aplite') > -1) {
-                        return ConnectionType.QemuAplite;
-                    }
-                    else if (CloudPebble.ProjectInfo.app_platforms.indexOf('diorite') > -1) {
-                        return ConnectionType.QemuDiorite;
-                    }
-                    else if(CloudPebble.ProjectInfo.app_platforms.indexOf('gabbro') > -1) {
-                        return ConnectionType.QemuGabbro;
-                    }
-                    else if(CloudPebble.ProjectInfo.app_platforms.indexOf('flint') > -1) {
-                        return ConnectionType.QemuFlint;
-                    }
+                    return preferred_qemu;
                 }
             }
         },
