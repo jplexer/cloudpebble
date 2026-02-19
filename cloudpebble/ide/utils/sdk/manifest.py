@@ -4,6 +4,7 @@ import uuid
 
 from django.utils.translation import gettext as _
 
+from ide.utils.regexes import regexes
 from ide.utils.project import APPINFO_MANIFEST, PACKAGE_MANIFEST, InvalidProjectArchiveException
 
 __author__ = 'katharine'
@@ -290,7 +291,12 @@ def load_manifest_dict(manifest, manifest_kind, default_project_type='native'):
     else:
         raise InvalidProjectArchiveException(_('Invalid manifest kind: %s') % manifest_kind[-12:])
 
-    project['app_uuid'] = manifest.get('uuid', uuid.uuid4())
+    app_uuid = manifest.get('uuid', str(uuid.uuid4()))
+    if isinstance(app_uuid, uuid.UUID):
+        app_uuid = str(app_uuid)
+    if not isinstance(app_uuid, str) or not re.match(regexes.uuid, app_uuid):
+        app_uuid = str(uuid.uuid4())
+    project['app_uuid'] = app_uuid
     project['app_is_watchface'] = manifest.get('watchapp', {}).get('watchface', False)
     project['app_is_hidden'] = manifest.get('watchapp', {}).get('hiddenApp', False)
     project['app_is_shown_on_communication'] = manifest.get('watchapp', {}).get('onlyShownOnCommunication', False)

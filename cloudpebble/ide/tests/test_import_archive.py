@@ -7,6 +7,7 @@ from ide.tasks.archive import do_import_archive, InvalidProjectArchiveException
 from ide.utils.cloudpebble_test import CloudpebbleTestCase, make_package, make_appinfo, build_bundle, override_settings
 from ide.models.project import Project
 from ide.models.files import SourceFile
+from ide.utils.regexes import regexes
 from utils.fakes import FakeS3
 
 __author__ = 'joe'
@@ -80,6 +81,17 @@ class TestImportArchive(CloudpebbleTestCase):
         project = Project.objects.get(pk=self.project_id)
         actual_deps = {d.name: d.version for d in project.dependencies.all()}
         self.assertDictEqual(actual_deps, deps)
+
+    def test_import_package_with_invalid_uuid_generates_new_uuid4(self):
+        invalid_uuid = 'b2c3d4e5-2345-6789-bcde-f01234567890'
+        bundle = build_bundle({
+            'src/main.c': '',
+            'package.json': make_package(pebble_options={'uuid': invalid_uuid})
+        })
+        do_import_archive(self.project_id, bundle)
+        project = Project.objects.get(pk=self.project_id)
+        self.assertNotEqual(project.app_uuid, invalid_uuid)
+        self.assertRegex(project.app_uuid, regexes.uuid)
 
     def test_import_package_with_keywords(self):
         """ Check that keywords in a package.json file are imported into the database """
