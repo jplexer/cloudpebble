@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     bzip2 \
     git \
     libc6-dev \
+    libfreetype6 \
     libsdl1.2debian \
     libfdt1 \
     libglib2.0-0 \
