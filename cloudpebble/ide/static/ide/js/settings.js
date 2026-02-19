@@ -28,14 +28,9 @@ CloudPebble.Settings = (function() {
         if(!(CloudPebble.ProjectProperties.supports_message_keys)) {
             pane.find('.supports-message-keys').hide();
         }
-        // Embedded JS projects (alloy) can only target emery and gabbro
-        var has_embeddedjs = CloudPebble.ProjectInfo.has_embeddedjs ||
-            _.some(CloudPebble.Editor.GetAllFiles(), function(f) { return f.target == 'embeddedjs'; });
-        if(has_embeddedjs) {
-            pane.find('.not-alloy-platform').each(function() {
-                $(this).find('input[type=checkbox]').prop('checked', false).prop('disabled', true);
-                $(this).find('.help-block').text(gettext("Not available for projects with Embedded JS files."));
-            });
+        // JavaScript SDK projects (alloy) only support emery + gabbro.
+        if(CloudPebble.ProjectInfo.type == 'alloy') {
+            pane.find('.not-alloy-platform').hide();
         }
 
         var display_error = function(message) {
