@@ -944,6 +944,258 @@ CloudPebble.Resources = (function() {
         edit_resource(resource);
     };
 
+    // =========================================================================
+    // Alloy assets (embeddedjs binary source files shown in Assets section)
+    // =========================================================================
+
+    var alloy_assets = {}; // keyed by file id
+
+    /**
+     * Add a binary embeddedjs source file to the Assets sidebar section.
+     */
+    var add_alloy_asset = function(file) {
+        alloy_assets[file.id] = file;
+        CloudPebble.Sidebar.AddResource({id: 'alloy-' + file.id, file_name: file.name}, function() {
+            edit_alloy_asset(file);
+        });
+    };
+
+    /**
+     * Show a resource-style editor pane for an alloy asset file.
+     */
+    var edit_alloy_asset = function(file) {
+        CloudPebble.Sidebar.SuspendActive();
+        if (CloudPebble.Sidebar.Restore('resource-alloy-' + file.id)) {
+            return;
+        }
+
+        var pane = $('<div>');
+        var is_image = /\.(png|bmp|jpg|jpeg|gif|pdc)$/i.test(file.name);
+
+        // Header
+        pane.append($('<h2>').text(file.name));
+        pane.append($('<p style="color: #999;">').text(
+            interpolate(gettext('Embedded JS asset (target: %s)'), [file.target])
+        ));
+
+        // Preview for images
+        if (is_image) {
+            var preview = $('<div style="margin: 15px 0;">');
+            var img = $('<img>').attr('src', '/ide/project/' + PROJECT_ID + '/source/' + file.id + '/download')
+                .css({'max-width': '300px', 'max-height': '300px', 'border': '1px solid #555', 'background': '#333'});
+            preview.append(img);
+            pane.append(preview);
+        }
+
+        // File info
+        var info = $('<div class="well" style="margin: 15px 0;">');
+        info.append($('<p>').html('<strong>' + gettext('Path:') + '</strong> ' + $('<span>').text(file.name).html()));
+        info.append($('<p>').html('<strong>' + gettext('Target:') + '</strong> ' + $('<span>').text(file.target).html()));
+        pane.append(info);
+
+        // Replace file button
+        var replace_group = $('<div style="margin: 15px 0;">');
+        var replace_input = $('<input type="file">').css('display', 'inline-block');
+        var replace_btn = $('<button class="btn">').text(gettext('Replace File'));
+        var replace_status = $('<span style="margin-left: 10px; color: #999;">');
+        replace_group.append(replace_input).append(' ').append(replace_btn).append(replace_status);
+        pane.append(replace_group);
+
+        replace_btn.click(function() {
+            var files = replace_input[0].files;
+            if (!files || files.length === 0) {
+                replace_status.text(gettext('No file selected.')).css('color', '#c44');
+                return;
+            }
+            replace_btn.prop('disabled', true);
+            replace_status.text(gettext('Uploading...')).css('color', '#999');
+
+            var form_data = new FormData();
+            form_data.append('file', files[0]);
+            form_data.append('name', file.name);
+            form_data.append('target', 'embeddedjs');
+
+            // Delete old, create new (replace)
+            Ajax.Post('/ide/project/' + PROJECT_ID + '/source/' + file.id + '/delete').then(function() {
+                return $.ajax({
+                    url: '/ide/project/' + PROJECT_ID + '/create_binary_source_file',
+                    type: 'POST',
+                    data: form_data,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json'
+                });
+            }).then(function(data) {
+                if (data.success === false) {
+                    replace_status.text(data.error || gettext('Replace failed.')).css('color', '#c44');
+                    replace_btn.prop('disabled', false);
+                    return;
+                }
+                // Update local state
+                var new_file = data.file;
+                delete alloy_assets[file.id];
+                alloy_assets[new_file.id] = new_file;
+                file = new_file;
+
+                replace_status.text(gettext('Replaced successfully.')).css('color', '#6a6');
+                replace_btn.prop('disabled', false);
+
+                // Refresh preview
+                if (is_image) {
+                    pane.find('img').attr('src', '/ide/project/' + PROJECT_ID + '/source/' + file.id + '/download?' + Date.now());
+                }
+            }).catch(function(err) {
+                replace_status.text(gettext('Replace failed: ') + (err.message || err)).css('color', '#c44');
+                replace_btn.prop('disabled', false);
+            });
+        });
+
+        // Delete button
+        var button_holder = $('<p class="editor-button-wrapper">');
+        var delete_btn = $('<button class="btn delete-btn" title="' + gettext('Delete') + '"></button>');
+        delete_btn.click(function() {
+            CloudPebble.Prompts.Confirm(
+                interpolate(gettext("Do you want to delete %s?"), [file.name]),
+                gettext("This cannot be undone."),
+                function() {
+                    Ajax.Post('/ide/project/' + PROJECT_ID + '/source/' + file.id + '/delete').then(function() {
+                        CloudPebble.Sidebar.DestroyActive();
+                        CloudPebble.Sidebar.Remove('resource-alloy-' + file.id);
+                        delete alloy_assets[file.id];
+                    }).catch(alert);
+                }
+            );
+        });
+        button_holder.append(delete_btn);
+        pane.append(button_holder);
+
+        CloudPebble.Sidebar.SetActivePane(pane, {id: 'resource-alloy-' + file.id});
+    };
+
+    /**
+     * Upload dialog for alloy assets.
+     */
+    var create_alloy_asset = function() {
+        var prompt = $('#alloy-asset-upload-prompt');
+        if (!prompt.length) {
+            prompt = $(
+                '<div id="alloy-asset-upload-prompt" class="modal hide fade" tabindex="-1" role="dialog">' +
+                '  <div class="modal-header"><h3>' + gettext('Upload Asset') + '</h3></div>' +
+                '  <form class="form-horizontal">' +
+                '    <div class="modal-body">' +
+                '      <div class="alert alert-error hide"></div>' +
+                '      <div class="control-group">' +
+                '        <label class="control-label">' + gettext('File') + '</label>' +
+                '        <div class="controls">' +
+                '          <input type="file" id="alloy-asset-file" accept=".png,.ttf,.otf,.pdc,.bmp,.jpg,.jpeg,.gif">' +
+                '        </div>' +
+                '      </div>' +
+                '      <div class="control-group">' +
+                '        <label class="control-label">' + gettext('Path prefix') + '</label>' +
+                '        <div class="controls">' +
+                '          <input type="text" id="alloy-asset-prefix" value="assets/" placeholder="assets/">' +
+                '          <span class="help-block">' + gettext('Directory within embeddedjs where the file will be stored (e.g. assets/).') + '</span>' +
+                '        </div>' +
+                '      </div>' +
+                '      <div class="control-group">' +
+                '        <label class="control-label">' + gettext('Filename') + '</label>' +
+                '        <div class="controls">' +
+                '          <input type="text" id="alloy-asset-name" readonly placeholder="' + gettext('(auto-filled from uploaded file)') + '">' +
+                '        </div>' +
+                '      </div>' +
+                '    </div>' +
+                '  </form>' +
+                '  <div class="modal-footer">' +
+                '    <a href="#" id="alloy-asset-pebble-resource-link" style="float: left; margin-top: 5px; font-size: 12px; color: #999;">' + gettext('Need a Pebble resource for C code or menu icon?') + '</a>' +
+                '    <button class="btn" data-dismiss="modal">' + gettext('Cancel') + '</button>' +
+                '    <button type="button" class="btn btn-primary" id="alloy-asset-upload-btn">' + gettext('Upload') + '</button>' +
+                '  </div>' +
+                '</div>'
+            );
+            $('body').append(prompt);
+
+            prompt.find('#alloy-asset-pebble-resource-link').click(function(e) {
+                e.preventDefault();
+                prompt.modal('hide');
+                create_new_resource();
+            });
+
+            prompt.find('#alloy-asset-file').change(function() {
+                var files = this.files;
+                if (files.length > 0) {
+                    prompt.find('#alloy-asset-name').val(files[0].name);
+                }
+            });
+
+            prompt.find('#alloy-asset-upload-btn').click(function() {
+                var error = prompt.find('.alert');
+                var file_input = prompt.find('#alloy-asset-file')[0];
+                var prefix = prompt.find('#alloy-asset-prefix').val().trim();
+                var file_name = prompt.find('#alloy-asset-name').val().trim();
+
+                if (!file_input.files || file_input.files.length === 0) {
+                    error.text(gettext('Please select a file to upload.')).show();
+                    return;
+                }
+                if (!file_name) {
+                    error.text(gettext('Please specify a filename.')).show();
+                    return;
+                }
+
+                var full_name = prefix + file_name;
+                full_name = full_name.replace(/\/+/g, '/').replace(/^\//, '');
+
+                error.hide();
+                var btn = $(this);
+                btn.prop('disabled', true);
+
+                var form_data = new FormData();
+                form_data.append('file', file_input.files[0]);
+                form_data.append('name', full_name);
+                form_data.append('target', 'embeddedjs');
+
+                $.ajax({
+                    url: '/ide/project/' + PROJECT_ID + '/create_binary_source_file',
+                    type: 'POST',
+                    data: form_data,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json'
+                }).done(function(data) {
+                    if (data.success === false) {
+                        error.text(data.error || gettext('Upload failed.')).show();
+                        btn.prop('disabled', false);
+                        return;
+                    }
+                    prompt.modal('hide');
+                    btn.prop('disabled', false);
+
+                    // Add to the Assets section in the sidebar
+                    var file_data = data.file;
+                    add_alloy_asset(file_data);
+                    edit_alloy_asset(file_data);
+
+                    ga('send', 'event', 'resource', 'create_alloy_asset');
+                }).fail(function(xhr) {
+                    var msg = gettext('Upload failed.');
+                    try {
+                        var resp = JSON.parse(xhr.responseText);
+                        if (resp.error) msg = resp.error;
+                    } catch(e) {}
+                    error.text(msg).show();
+                    btn.prop('disabled', false);
+                });
+            });
+        }
+
+        // Reset the form
+        prompt.find('.alert').hide();
+        prompt.find('#alloy-asset-file').val('');
+        prompt.find('#alloy-asset-name').val('');
+        prompt.find('#alloy-asset-prefix').val('assets/');
+        prompt.modal('show');
+    };
+
     var resource_template = null;
 
     var init = function() {
@@ -967,6 +1219,9 @@ CloudPebble.Resources = (function() {
         Add: function(resource) {
             add_resource(resource);
         },
+        AddAlloyAsset: function(file) {
+            add_alloy_asset(file);
+        },
         Update: function(resource) {
             update_resource(resource);
         },
@@ -974,7 +1229,11 @@ CloudPebble.Resources = (function() {
             init();
         },
         Create: function() {
-            create_new_resource();
+            if (CloudPebble.ProjectInfo.type === 'alloy') {
+                create_alloy_asset();
+            } else {
+                create_new_resource();
+            }
         },
         GetBitmaps: function() {
             return _.filter(project_resources, function(item) { return /^(png|pbi|bitmap)/.test(item.kind); });
