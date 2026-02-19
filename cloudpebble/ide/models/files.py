@@ -340,8 +340,8 @@ class SourceFile(TextFile):
         else:
             expected_exts = ('.c', '.h')
         if expected_exts is None:
-            _, ext = os.path.splitext(path)
-            if not ext:
+            split_ext = os.path.splitext(path)[1]
+            if not split_ext:
                 raise ValueError(_("Unacceptable file extension for %s file in [%s].") % (file_target, path))
         elif not path.endswith(expected_exts):
             raise ValueError(_("Unacceptable file extension for %s file in [%s]. Expecting %s") %

@@ -196,7 +196,7 @@ class Project(IdeModel):
     @property
     def supported_platforms(self):
         if self.project_type == 'alloy':
-            return ["emery", "gabbro"]
+            return ["emery", "gabbro", "flint"]
         supported_platforms = ["aplite", "basalt", "chalk", "gabbro"]
         if self.project_type != 'pebblejs':
             supported_platforms.extend(["diorite", "emery", "flint"])

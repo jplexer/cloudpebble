@@ -2,9 +2,6 @@ FROM python:3.11-slim-bookworm
 LABEL maintainer="CloudPebble Contributors"
 
 ENV NPM_CONFIG_LOGLEVEL=info NODE_VERSION=20.11.0 DJANGO_VERSION=4.2 NODEJS_CHECK_SIGNATURES=no
-ENV MODDABLE_EXAMPLES_ROOT=/opt/pebble-examples \
-    MODDABLE_EXAMPLES_REPO=https://github.com/Moddable-OpenSource/pebble-examples.git \
-    MODDABLE_EXAMPLES_BRANCH=main
 
 # Node stuff.
 RUN apt-get update && apt-get install -y curl && \
@@ -54,13 +51,13 @@ ENV PEBBLE_SDK_PATH=/root/.pebble-sdk
 ENV PATH="${PEBBLE_SDK_PATH}/SDKs/current/toolchain/arm-none-eabi/bin:$PATH"
 
 # Keep JavaScript SDK examples synced to latest upstream at image build time.
-RUN mkdir -p "$(dirname "$MODDABLE_EXAMPLES_ROOT")" && \
-  if [ -d "$MODDABLE_EXAMPLES_ROOT/.git" ]; then \
-    git -C "$MODDABLE_EXAMPLES_ROOT" fetch --depth 1 origin "$MODDABLE_EXAMPLES_BRANCH" && \
-    git -C "$MODDABLE_EXAMPLES_ROOT" reset --hard "origin/$MODDABLE_EXAMPLES_BRANCH"; \
+RUN mkdir -p /opt && \
+  if [ -d "/opt/pebble-examples/.git" ]; then \
+    git -C "/opt/pebble-examples" fetch --depth 1 origin main && \
+    git -C "/opt/pebble-examples" reset --hard "origin/main"; \
   else \
-    rm -rf "$MODDABLE_EXAMPLES_ROOT" && \
-    git clone --depth 1 --branch "$MODDABLE_EXAMPLES_BRANCH" "$MODDABLE_EXAMPLES_REPO" "$MODDABLE_EXAMPLES_ROOT"; \
+    rm -rf /opt/pebble-examples && \
+    git clone --depth 1 --branch main "https://github.com/Moddable-OpenSource/pebble-examples.git" "/opt/pebble-examples"; \
   fi
 
 ADD requirements.txt /tmp/requirements.txt

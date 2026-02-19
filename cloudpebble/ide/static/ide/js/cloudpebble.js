@@ -51,6 +51,29 @@ CloudPebble.TargetNames =   {
 
 CloudPebble.ProjectInfo = {};
 
+function pickDefaultSourceFile(sourceFiles) {
+    if (!sourceFiles || !sourceFiles.length) {
+        return null;
+    }
+
+    function match(name, target) {
+        return _.find(sourceFiles, function(file) {
+            var nameMatches = file.name === name;
+            var targetMatches = target ? file.target === target : true;
+            return nameMatches && targetMatches;
+        }) || null;
+    }
+
+    return (
+        match('main.c', 'app') ||
+        match('main.c', null) ||
+        match('main.js', 'embeddedjs') ||
+        match('main.js', 'app') ||
+        match('main.js', 'pkjs') ||
+        match('main.js', null)
+    );
+}
+
 CloudPebble.Init = function() {
     jquery_csrf_setup();
 
@@ -74,6 +97,10 @@ CloudPebble.Init = function() {
         $.each(data.source_files, function(index, value) {
             CloudPebble.Editor.Add(value);
         });
+        var defaultSource = pickDefaultSourceFile(data.source_files);
+        if (defaultSource) {
+            CloudPebble.Editor.GoTo(defaultSource, 0, 0);
+        }
 
         $.each(data.resources, function(index, value) {
             CloudPebble.Resources.Add(value);

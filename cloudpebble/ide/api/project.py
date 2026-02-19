@@ -580,6 +580,7 @@ def create_project(request):
     try:
         with transaction.atomic():
             app_keys = '[]'
+            imported_from_archive = False
             project = Project.objects.create(
                 name=name,
                 owner=request.user,
@@ -611,6 +612,7 @@ def create_project(request):
                     try:
                         bundle = build_template_archive(alloy_template)
                         do_import_archive(project.id, bundle, delete_project=True)
+                        imported_from_archive = True
                     except Exception as e:
                         raise BadRequest(_('Failed to import JavaScript SDK template: %s') % str(e))
                 else:
@@ -638,6 +640,10 @@ def create_project(request):
             elif project_type == 'pebblejs':
                 f = SourceFile.objects.create(project=project, file_name="app.js")
                 f.save_text(open('{}/src/js/app.js'.format(settings.PEBBLEJS_ROOT)).read())
+            if imported_from_archive:
+                # do_import_archive() persists imported metadata (including targetPlatforms) using its own Project instance.
+                # Refresh to avoid writing stale defaults back over imported values.
+                project.refresh_from_db()
             project.full_clean()
             project.save()
     except IntegrityError as e:
@@ -676,10 +682,10 @@ def save_project_settings(request, project_id):
             project.sdk_version = sdk_version
             app_platforms = request.POST['app_platforms']
             if app_platforms and project.has_embeddedjs_files:
-                unsupported = set(app_platforms.split(',')) - {'emery', 'gabbro'}
+                unsupported = set(app_platforms.split(',')) - {'emery', 'gabbro', 'flint'}
                 if unsupported:
                     raise BadRequest(
-                        _("Projects with Embedded JS files can only target Emery and Gabbro. "
+                        _("Projects with Embedded JS files can only target Emery, Gabbro, and Flint. "
                           "Remove unsupported platforms: %s") % ', '.join(sorted(unsupported))
                     )
             project.app_platforms = app_platforms

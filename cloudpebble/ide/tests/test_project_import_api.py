@@ -123,6 +123,11 @@ class TestProjectImportApi(TestCase):
     def test_create_alloy_project_from_dynamic_template(self, list_templates, build_template_archive, import_archive):
         list_templates.return_value = [{'id': 'hellopebble'}]
         build_template_archive.return_value = b'zip-data'
+        def _import_side_effect(project_id, _bundle, delete_project=False):
+            project = Project.objects.get(id=project_id)
+            project.app_platforms = 'flint,emery'
+            project.save()
+        import_archive.side_effect = _import_side_effect
         response = self.client.post('/ide/project/create', {
             'name': 'alloy-from-template',
             'type': 'alloy',
@@ -135,6 +140,7 @@ class TestProjectImportApi(TestCase):
         project = Project.objects.get(id=payload['id'])
         build_template_archive.assert_called_once_with('hellopebble')
         import_archive.assert_called_once_with(project.id, b'zip-data', delete_project=True)
+        self.assertEqual(project.app_platforms, 'flint,emery')
 
     @mock.patch('ide.api.project.list_alloy_templates')
     def test_create_alloy_project_falls_back_when_template_unavailable(self, list_templates):
@@ -213,3 +219,18 @@ class TestProjectSettingsApi(TestCase):
         self.assertEqual(response.status_code, 200)
         self.project.refresh_from_db()
         self.assertEqual(self.project.sdk_version, '4.9.127')
+
+    def test_save_settings_accepts_flint_for_embeddedjs(self):
+        self.project.project_type = 'alloy'
+        self.project.app_platforms = 'flint,emery'
+        self.project.save()
+        SourceFile.objects.create(project=self.project, file_name='main.js', target='embeddedjs').save_text('trace("x");')
+
+        payload = self._settings_payload('4.9.127')
+        payload['app_platforms'] = 'flint,emery'
+        response = self.client.post('/ide/project/{}/save_settings'.format(self.project.id), payload)
+        body = json.loads(response.content)
+        self.assertTrue(body['success'])
+        self.assertEqual(response.status_code, 200)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.app_platforms, 'flint,emery')

@@ -4,8 +4,9 @@ import os
 import shutil
 import tempfile
 import zipfile
+import mock
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from ide.utils.alloy_templates import list_alloy_templates, build_template_archive
 
@@ -29,9 +30,9 @@ class TestAlloyTemplates(TestCase):
         with open(os.path.join(template_root, 'package.json'), 'w') as handle:
             json.dump({'name': relpath, 'pebble': {'projectType': project_type}}, handle)
 
-    @override_settings(MODDABLE_EXAMPLES_ROOT='/tmp/unused')
     def test_list_alloy_templates_returns_empty_when_missing(self):
-        self.assertEqual(list_alloy_templates(), [])
+        with mock.patch('ide.utils.alloy_templates._examples_root', return_value='/tmp/unused'):
+            self.assertEqual(list_alloy_templates(), [])
 
     def test_list_alloy_templates_applies_requested_order(self):
         self._write_template('zzzapp')
@@ -46,7 +47,7 @@ class TestAlloyTemplates(TestCase):
         self._write_template('another')
         self._write_template('nonmoddable', project_type='native')
 
-        with override_settings(MODDABLE_EXAMPLES_ROOT=self.examples_root):
+        with mock.patch('ide.utils.alloy_templates._examples_root', return_value=self.examples_root):
             templates = list_alloy_templates()
 
         ids = [template['id'] for template in templates]
@@ -67,7 +68,7 @@ class TestAlloyTemplates(TestCase):
 
     def test_build_template_archive_contains_project_files(self):
         self._write_template('hellopebble')
-        with override_settings(MODDABLE_EXAMPLES_ROOT=self.examples_root):
+        with mock.patch('ide.utils.alloy_templates._examples_root', return_value=self.examples_root):
             archive_bytes = build_template_archive('hellopebble')
 
         with zipfile.ZipFile(io.BytesIO(archive_bytes), 'r') as zf:
@@ -80,6 +81,6 @@ class TestAlloyTemplates(TestCase):
 
     def test_build_template_archive_rejects_traversal(self):
         self._write_template('hellopebble')
-        with override_settings(MODDABLE_EXAMPLES_ROOT=self.examples_root):
+        with mock.patch('ide.utils.alloy_templates._examples_root', return_value=self.examples_root):
             with self.assertRaises(ValueError):
                 build_template_archive('../outside')

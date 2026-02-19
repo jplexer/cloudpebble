@@ -4,9 +4,9 @@ sleep 1
 # Use the system Python 3.11 (not uv's isolated pebble-tool env)
 PYTHON=/usr/local/bin/python
 
-if [ -n "$MODDABLE_EXAMPLES_ROOT" ] && [ -d "$MODDABLE_EXAMPLES_ROOT/.git" ]; then
-	git -C "$MODDABLE_EXAMPLES_ROOT" fetch --depth 1 origin "${MODDABLE_EXAMPLES_BRANCH:-main}" >/dev/null 2>&1 || true
-	git -C "$MODDABLE_EXAMPLES_ROOT" reset --hard "origin/${MODDABLE_EXAMPLES_BRANCH:-main}" >/dev/null 2>&1 || true
+if [ -d "/opt/pebble-examples/.git" ]; then
+	git -C "/opt/pebble-examples" fetch --depth 1 origin main >/dev/null 2>&1 || true
+	git -C "/opt/pebble-examples" reset --hard "origin/main" >/dev/null 2>&1 || true
 fi
 
 if [ ! -z "$RUN_WEB" ]; then

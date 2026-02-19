@@ -3,11 +3,11 @@ import json
 import os
 import zipfile
 
-from django.conf import settings
+EXAMPLES_ROOT = '/opt/pebble-examples'
 
 
 def _examples_root():
-    return getattr(settings, 'MODDABLE_EXAMPLES_ROOT', '/opt/pebble-examples')
+    return EXAMPLES_ROOT
 
 
 def _template_display_name(path):
