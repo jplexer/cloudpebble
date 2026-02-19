@@ -217,7 +217,7 @@ CloudPebble.Settings = (function() {
                 if (CloudPebble.Ready) {
                     CloudPebble.YCM.updateAppkeys(app_key_names);
                 }
-                return null;
+
             }).catch(function(e) {
                 throw new Error(interpolate("Failed to save project settings. (%s) %s", [e.status, e.message]));
             });
@@ -384,7 +384,6 @@ CloudPebble.Settings = (function() {
             CloudPebble.ProjectInfo.menu_icon = null;
         }
     };
-
 
     return {
         Show: function() {

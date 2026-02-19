@@ -98,6 +98,72 @@ CloudPebble.Sidebar = (function() {
             .append(link);
     }
 
+    /**
+     * Find or create a collapsible folder node within a source section.
+     * Supports nested folders (e.g. "assets/images" creates assets/ > images/).
+     * @param {jQuery} section - The <ul> source section element
+     * @param {string} folder_name - The folder path (e.g. "modules" or "assets/sub")
+     * @returns {jQuery} The <ul> inside the deepest folder node
+     */
+    function get_or_create_folder(section, folder_name) {
+        var parts = folder_name.split('/');
+        var current_container = section;
+
+        for (var i = 0; i < parts.length; i++) {
+            var part = parts[i];
+            var folder_id = 'sidebar-folder-' + section.attr('id') + '-' + parts.slice(0, i + 1).join('-');
+            var existing = current_container.find('> li.sidebar-folder[data-folder-id="' + folder_id + '"]');
+
+            if (existing.length) {
+                current_container = existing.find('> ul.sidebar-folder-contents');
+            } else {
+                var folder_header = $('<a href="#" class="sidebar-folder-toggle">')
+                    .html('<span class="sidebar-folder-arrow">&#9662;</span> ' + part + '/');
+                var folder_contents = $('<ul class="nav-list sidebar-folder-contents">');
+                var folder_li = $('<li class="sidebar-folder">')
+                    .attr('data-folder-id', folder_id)
+                    .append(folder_header)
+                    .append(folder_contents);
+
+                folder_header.click(function(e) {
+                    e.preventDefault();
+                    var $this = $(this);
+                    var contents = $this.siblings('.sidebar-folder-contents');
+                    var arrow = $this.find('.sidebar-folder-arrow');
+                    contents.slideToggle(150);
+                    if (arrow.html() === '\u25B8') {
+                        arrow.html('&#9662;');
+                    } else {
+                        arrow.html('&#9656;');
+                    }
+                });
+
+                // Insert folders before non-folder items, sorted alphabetically
+                var inserted = false;
+                current_container.find('> li.sidebar-folder').each(function() {
+                    var existing_name = $(this).find('> a.sidebar-folder-toggle').text().trim();
+                    if (part + '/' < existing_name) {
+                        $(this).before(folder_li);
+                        inserted = true;
+                        return false;
+                    }
+                });
+                if (!inserted) {
+                    // Insert after last folder but before file items
+                    var last_folder = current_container.find('> li.sidebar-folder:last');
+                    if (last_folder.length) {
+                        last_folder.after(folder_li);
+                    } else {
+                        current_container.prepend(folder_li);
+                    }
+                }
+
+                current_container = folder_contents;
+            }
+        }
+        return current_container;
+    }
+
     function create_initial_sections(type) {
         var default_sections_for_project_types = {
             native: ['app', 'pkjs'],
@@ -143,10 +209,29 @@ CloudPebble.Sidebar = (function() {
         },
         AddSourceFile: function(file, on_click) {
             var section = get_source_section(file.target);
+            var slash_index = file.name.lastIndexOf('/');
+            if (slash_index !== -1) {
+                var folder_path = file.name.substring(0, slash_index);
+                var base_name = file.name.substring(slash_index + 1);
+                var folder_ul = get_or_create_folder(section, folder_path);
+                return render_file_link("sidebar-pane-source-" + file.id, base_name, on_click).appendTo(folder_ul);
+            }
             return render_file_link("sidebar-pane-source-" + file.id, file.name, on_click).appendTo(section);
         },
         Remove: function(id) {
-            $('#sidebar-pane-' + id).remove();
+            var item = $('#sidebar-pane-' + id);
+            var parent_folder = item.closest('.sidebar-folder-contents');
+            item.remove();
+            // Clean up empty parent folders
+            while (parent_folder.length && parent_folder.hasClass('sidebar-folder-contents')) {
+                if (parent_folder.children().length === 0) {
+                    var folder_li = parent_folder.closest('.sidebar-folder');
+                    parent_folder = folder_li.closest('.sidebar-folder-contents');
+                    folder_li.remove();
+                } else {
+                    break;
+                }
+            }
         },
         SetIcon: function(pane_id, icon) {
             var a = $('#sidebar-pane-' + pane_id).find('a');

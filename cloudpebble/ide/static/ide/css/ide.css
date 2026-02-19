@@ -157,6 +157,45 @@ ul.nav-pills {
     margin-top: 0;
 }
 
+/* Sidebar collapsible folders */
+
+li.sidebar-folder {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+}
+
+.sidebar-folder-toggle {
+    color: #999 !important;
+    cursor: pointer;
+    font-size: 0.9em;
+    display: block;
+    padding: 2px 0;
+    text-decoration: none !important;
+}
+
+.sidebar-folder-toggle:hover {
+    color: #ccc !important;
+}
+
+.sidebar-folder-arrow {
+    display: inline-block;
+    width: 10px;
+    font-size: 0.8em;
+    text-align: center;
+}
+
+.sidebar-folder-contents {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    padding-left: 12px;
+}
+
+.sidebar-folder-contents li {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
 /* Emulator */
 
 #emulator-container {
