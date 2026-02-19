@@ -78,7 +78,7 @@
                     </li>
                     {% if project.project_type != 'simplyjs' and project.project_type != 'rocky' %}
                     <li class="nav-section">
-                        <span class="nav-header">{% trans 'Resources' %}</span>
+                        <span class="nav-header" id="sidebar-resources-header">{% trans 'Resources' %}</span>
                         <button class="btn btn-small" id="sidebar-pane-new-resource">{% trans 'Add new' %}</button>
                         <ul class="nav-list" id="sidebar-resources">
 
@@ -246,7 +246,8 @@
                 <div class="control-group">
                     <label class="control-label" for="new-embeddedjs-file-name">{% trans 'Filename' %}</label>
                     <div class="controls">
-                        <input type="text" id="new-embeddedjs-file-name" pattern="[a-zA-Z0-9_-]+\.(js|json)$">
+                        <input type="text" id="new-embeddedjs-file-name" pattern="[a-zA-Z0-9_/.-]+\.(js|json)$">
+                        <span class="help-block">{% trans 'Supports subdirectories (e.g. modules/file.js). For binary assets (.png, .ttf, .pdc), use the "Add New" button in the Resources section.' %}</span>
                     </div>
                 </div>
             </div>

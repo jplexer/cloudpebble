@@ -5,9 +5,13 @@ import uuid
 from django.utils.translation import gettext as _
 
 from ide.utils.regexes import regexes
-from ide.utils.project import APPINFO_MANIFEST, PACKAGE_MANIFEST, InvalidProjectArchiveException
+from ide.utils.project import (
+    APPINFO_MANIFEST,
+    PACKAGE_MANIFEST,
+    InvalidProjectArchiveException,
+)
 
-__author__ = 'katharine'
+__author__ = "katharine"
 
 
 def manifest_name_for_project(project):
@@ -20,9 +24,9 @@ def manifest_name_for_project(project):
 def generate_manifest(project, resources):
     if project.is_standard_project_type:
         return generate_v3_manifest(project, resources)
-    elif project.project_type == 'pebblejs':
+    elif project.project_type == "pebblejs":
         return generate_pebblejs_manifest(project, resources)
-    elif project.project_type == 'simplyjs':
+    elif project.project_type == "simplyjs":
         return generate_simplyjs_manifest(project)
     else:
         raise Exception(_("Unknown project type %s") % project.project_type)
@@ -38,111 +42,112 @@ def generate_v3_manifest(project, resources):
 
 def generate_v2_manifest_dict(project, resources):
     manifest = {
-        'uuid': str(project.app_uuid),
-        'shortName': project.app_short_name,
-        'longName': project.app_long_name,
-        'companyName': project.app_company_name,
-        'versionLabel': project.app_version_label,
-        'versionCode': 1,
-        'watchapp': {
-            'watchface': project.app_is_watchface
-        },
-        'appKeys': json.loads(project.app_keys),
-        'resources': generate_resource_dict(project, resources),
-        'projectType': 'native',
-        'sdkVersion': "2",
+        "uuid": str(project.app_uuid),
+        "shortName": project.app_short_name,
+        "longName": project.app_long_name,
+        "companyName": project.app_company_name,
+        "versionLabel": project.app_version_label,
+        "versionCode": 1,
+        "watchapp": {"watchface": project.app_is_watchface},
+        "appKeys": json.loads(project.app_keys),
+        "resources": generate_resource_dict(project, resources),
+        "projectType": "native",
+        "sdkVersion": "2",
     }
     if project.app_capabilities:
-        manifest['capabilities'] = project.app_capabilities.split(',')
+        manifest["capabilities"] = project.app_capabilities.split(",")
     if project.app_is_shown_on_communication:
-        manifest['watchapp']['onlyShownOnCommunication'] = project.app_is_shown_on_communication
+        manifest["watchapp"]["onlyShownOnCommunication"] = (
+            project.app_is_shown_on_communication
+        )
     return manifest
 
 
 def generate_v3_manifest_dict(project, resources):
     manifest = {
-        'name': project.npm_name,
-        'author': project.app_company_name,
-        'version': project.semver,
-        'keywords': project.keywords,
-        'dependencies': project.get_dependencies(),
-        'pebble': {
-            'sdkVersion': '3',
-            'watchapp': {
-                'watchface': project.app_is_watchface
-            },
-            'messageKeys': json.loads(project.app_keys),
-            'resources': generate_resource_dict(project, resources),
-            'projectType': 'moddable' if project.project_type == 'alloy' else project.project_type
-        }
+        "name": project.npm_name,
+        "author": project.app_company_name,
+        "version": project.semver,
+        "keywords": project.keywords,
+        "dependencies": project.get_dependencies(),
+        "pebble": {
+            "sdkVersion": "3",
+            "watchapp": {"watchface": project.app_is_watchface},
+            "messageKeys": json.loads(project.app_keys),
+            "resources": generate_resource_dict(project, resources),
+            "projectType": "moddable"
+            if project.project_type == "alloy"
+            else project.project_type,
+        },
     }
     if project.app_capabilities:
-        manifest['pebble']['capabilities'] = project.app_capabilities.split(',')
-    if project.project_type == 'package':
-        manifest['files'] = ['dist.zip']
+        manifest["pebble"]["capabilities"] = project.app_capabilities.split(",")
+    if project.project_type == "package":
+        manifest["files"] = ["dist.zip"]
     else:
-        manifest['pebble']['uuid'] = str(project.app_uuid)
-        manifest['pebble']['enableMultiJS'] = project.app_modern_multi_js
-        manifest['pebble']['displayName'] = project.app_long_name
+        manifest["pebble"]["uuid"] = str(project.app_uuid)
+        manifest["pebble"]["enableMultiJS"] = project.app_modern_multi_js
+        manifest["pebble"]["displayName"] = project.app_long_name
         if project.app_is_hidden:
-            manifest['pebble']['watchapp']['hiddenApp'] = project.app_is_hidden
+            manifest["pebble"]["watchapp"]["hiddenApp"] = project.app_is_hidden
     if project.app_platforms:
-        manifest['pebble']['targetPlatforms'] = project.app_platform_list
+        manifest["pebble"]["targetPlatforms"] = project.app_platform_list
     return manifest
 
 
 def generate_manifest_dict(project, resources):
     if project.is_standard_project_type:
         return generate_v3_manifest_dict(project, resources)
-    elif project.project_type == 'simplyjs':
+    elif project.project_type == "simplyjs":
         return generate_simplyjs_manifest_dict(project)
-    elif project.project_type == 'pebblejs':
+    elif project.project_type == "pebblejs":
         return generate_pebblejs_manifest_dict(project, resources)
     else:
         raise Exception(_("Unknown project type %s") % project.project_type)
 
+
 def dict_to_pretty_json(d):
-    return json.dumps(d, indent=4, separators=(',', ': '), sort_keys=True) + "\n"
+    return json.dumps(d, indent=4, separators=(",", ": "), sort_keys=True) + "\n"
 
 
 def generate_resource_dict(project, resources):
     if project.is_standard_project_type:
         return generate_native_resource_dict(project, resources)
-    elif project.project_type == 'simplyjs':
+    elif project.project_type == "simplyjs":
         return generate_simplyjs_resource_dict()
-    elif project.project_type == 'pebblejs':
+    elif project.project_type == "pebblejs":
         return generate_pebblejs_resource_dict(resources)
     else:
         raise Exception(_("Unknown project type %s") % project.project_type)
 
 
 def generate_native_resource_dict(project, resources):
-    resource_map = {'media': []}
+    resource_map = {"media": []}
     for resource in resources:
         for resource_id in resource.get_identifiers():
             d = {
-                'type': resource.kind,
-                'file': resource.root_path,
-                'name': resource_id.resource_id,
+                "type": resource.kind,
+                "file": resource.root_path,
+                "name": resource_id.resource_id,
             }
             if resource_id.character_regex:
-                d['characterRegex'] = resource_id.character_regex
+                d["characterRegex"] = resource_id.character_regex
             if resource_id.tracking:
-                d['trackingAdjust'] = resource_id.tracking
+                d["trackingAdjust"] = resource_id.tracking
             if resource_id.memory_format:
-                d['memoryFormat'] = resource_id.memory_format
+                d["memoryFormat"] = resource_id.memory_format
             if resource_id.storage_format:
-                d['storageFormat'] = resource_id.storage_format
+                d["storageFormat"] = resource_id.storage_format
             if resource_id.space_optimisation:
-                d['spaceOptimization'] = resource_id.space_optimisation
+                d["spaceOptimization"] = resource_id.space_optimisation
             if resource.is_menu_icon:
-                d['menuIcon'] = True
+                d["menuIcon"] = True
             if resource_id.compatibility is not None:
-                d['compatibility'] = resource_id.compatibility
+                d["compatibility"] = resource_id.compatibility
             if resource_id.target_platforms:
-                d['targetPlatforms'] = json.loads(resource_id.target_platforms)
+                d["targetPlatforms"] = json.loads(resource_id.target_platforms)
 
-            resource_map['media'].append(d)
+            resource_map["media"].append(d)
     return resource_map
 
 
@@ -153,16 +158,18 @@ def generate_simplyjs_resource_dict():
                 "menuIcon": True,
                 "type": "png",
                 "name": "IMAGE_MENU_ICON",
-                "file": "images/menu_icon.png"
-            }, {
+                "file": "images/menu_icon.png",
+            },
+            {
                 "type": "png",
                 "name": "IMAGE_LOGO_SPLASH",
-                "file": "images/logo_splash.png"
-            }, {
+                "file": "images/logo_splash.png",
+            },
+            {
                 "type": "font",
                 "name": "MONO_FONT_14",
-                "file": "fonts/UbuntuMono-Regular.ttf"
-            }
+                "file": "fonts/UbuntuMono-Regular.ttf",
+            },
         ]
     }
 
@@ -173,40 +180,41 @@ def generate_pebblejs_resource_dict(resources):
             "menuIcon": True,  # This must be the first entry; we adjust it later.
             "type": "bitmap",
             "name": "IMAGE_MENU_ICON",
-            "file": "images/menu_icon.png"
-        }, {
+            "file": "images/menu_icon.png",
+        },
+        {
             "type": "bitmap",
             "name": "IMAGE_LOGO_SPLASH",
-            "file": "images/logo_splash.png"
-        }, {
+            "file": "images/logo_splash.png",
+        },
+        {
             "type": "bitmap",
             "name": "IMAGE_TILE_SPLASH",
-            "file": "images/tile_splash.png"
-        }, {
+            "file": "images/tile_splash.png",
+        },
+        {
             "type": "font",
             "name": "MONO_FONT_14",
-            "file": "fonts/UbuntuMono-Regular.ttf"
-        }
+            "file": "fonts/UbuntuMono-Regular.ttf",
+        },
     ]
 
     for resource in resources:
-        if resource.kind not in ('bitmap', 'png'):
+        if resource.kind not in ("bitmap", "png"):
             continue
 
         d = {
-            'type': resource.kind,
-            'file': resource.root_path,
-            'name': re.sub(r'[^A-Z0-9_]', '_', resource.root_path.upper()),
+            "type": resource.kind,
+            "file": resource.root_path,
+            "name": re.sub(r"[^A-Z0-9_]", "_", resource.root_path.upper()),
         }
         if resource.is_menu_icon:
-            d['menuIcon'] = True
-            del media[0]['menuIcon']
+            d["menuIcon"] = True
+            del media[0]["menuIcon"]
 
         media.append(d)
 
-    return {
-        'media': media
-    }
+    return {"media": media}
 
 
 def generate_simplyjs_manifest(project):
@@ -221,13 +229,11 @@ def generate_simplyjs_manifest_dict(project):
         "companyName": project.app_company_name,
         "versionLabel": project.app_version_label,
         "versionCode": 1,
-        "capabilities": project.app_capabilities.split(','),
-        "watchapp": {
-            "watchface": project.app_is_watchface
-        },
+        "capabilities": project.app_capabilities.split(","),
+        "watchapp": {"watchface": project.app_is_watchface},
         "appKeys": {},
         "resources": generate_simplyjs_resource_dict(),
-        "projectType": "simplyjs"
+        "projectType": "simplyjs",
     }
     return manifest
 
@@ -243,11 +249,11 @@ def generate_pebblejs_manifest_dict(project, resources):
         "longName": project.app_long_name,
         "companyName": project.app_company_name,
         "versionLabel": project.app_version_label,
-        "capabilities": project.app_capabilities.split(','),
+        "capabilities": project.app_capabilities.split(","),
         "versionCode": 1,
         "watchapp": {
             "watchface": project.app_is_watchface,
-            'hiddenApp': project.app_is_hidden
+            "hiddenApp": project.app_is_hidden,
         },
         "appKeys": {},
         "resources": generate_pebblejs_resource_dict(resources),
@@ -260,8 +266,8 @@ def generate_pebblejs_manifest_dict(project, resources):
     return manifest
 
 
-def load_manifest_dict(manifest, manifest_kind, default_project_type='native'):
-    """ Load data from a manifest dictionary
+def load_manifest_dict(manifest, manifest_kind, default_project_type="native"):
+    """Load data from a manifest dictionary
     :param manifest: a dictionary of settings
     :param manifest_kind: 'package.json' or 'appinfo.json'
     :return: a tuple of (models.Project options dictionary, the media map, the dependencies dictionary)
@@ -269,47 +275,53 @@ def load_manifest_dict(manifest, manifest_kind, default_project_type='native'):
     project = {}
     dependencies = {}
     if manifest_kind == APPINFO_MANIFEST:
-        project['app_short_name'] = manifest['shortName']
-        project['app_long_name'] = manifest['longName']
-        project['app_company_name'] = manifest['companyName']
-        project['app_version_label'] = manifest['versionLabel']
-        project['app_keys'] = dict_to_pretty_json(manifest.get('appKeys', {}))
-        project['sdk_version'] = '4.9.127'
-        project['app_modern_multi_js'] = manifest.get('enableMultiJS', False)
+        project["app_short_name"] = manifest["shortName"]
+        project["app_long_name"] = manifest["longName"]
+        project["app_company_name"] = manifest["companyName"]
+        project["app_version_label"] = manifest["versionLabel"]
+        project["app_keys"] = dict_to_pretty_json(manifest.get("appKeys", {}))
+        project["sdk_version"] = "4.9.127"
+        project["app_modern_multi_js"] = manifest.get("enableMultiJS", False)
 
     elif manifest_kind == PACKAGE_MANIFEST:
-        project['app_short_name'] = manifest['name']
-        project['app_company_name'] = manifest['author']
-        project['semver'] = manifest['version']
-        project['app_long_name'] = manifest['pebble'].get('displayName', None)
-        project['app_keys'] = dict_to_pretty_json(manifest['pebble'].get('messageKeys', []))
-        project['keywords'] = manifest.get('keywords', [])
-        dependencies = manifest.get('dependencies', {})
-        manifest = manifest['pebble']
-        project['app_modern_multi_js'] = manifest.get('enableMultiJS', True)
-        project['sdk_version'] = '4.9.127'
+        project["app_short_name"] = manifest["name"]
+        project["app_company_name"] = manifest["author"]
+        project["semver"] = manifest["version"]
+        project["app_long_name"] = manifest["pebble"].get("displayName", None)
+        project["app_keys"] = dict_to_pretty_json(
+            manifest["pebble"].get("messageKeys", [])
+        )
+        project["keywords"] = manifest.get("keywords", [])
+        dependencies = manifest.get("dependencies", {})
+        manifest = manifest["pebble"]
+        project["app_modern_multi_js"] = manifest.get("enableMultiJS", True)
+        project["sdk_version"] = "4.9.127"
     else:
-        raise InvalidProjectArchiveException(_('Invalid manifest kind: %s') % manifest_kind[-12:])
+        raise InvalidProjectArchiveException(
+            _("Invalid manifest kind: %s") % manifest_kind[-12:]
+        )
 
-    app_uuid = manifest.get('uuid', str(uuid.uuid4()))
+    app_uuid = manifest.get("uuid", str(uuid.uuid4()))
     if isinstance(app_uuid, uuid.UUID):
         app_uuid = str(app_uuid)
     if not isinstance(app_uuid, str) or not re.match(regexes.uuid, app_uuid):
         app_uuid = str(uuid.uuid4())
-    project['app_uuid'] = app_uuid
-    project['app_is_watchface'] = manifest.get('watchapp', {}).get('watchface', False)
-    project['app_is_hidden'] = manifest.get('watchapp', {}).get('hiddenApp', False)
-    project['app_is_shown_on_communication'] = manifest.get('watchapp', {}).get('onlyShownOnCommunication', False)
-    project['app_capabilities'] = ','.join(manifest.get('capabilities', []))
+    project["app_uuid"] = app_uuid
+    project["app_is_watchface"] = manifest.get("watchapp", {}).get("watchface", False)
+    project["app_is_hidden"] = manifest.get("watchapp", {}).get("hiddenApp", False)
+    project["app_is_shown_on_communication"] = manifest.get("watchapp", {}).get(
+        "onlyShownOnCommunication", False
+    )
+    project["app_capabilities"] = ",".join(manifest.get("capabilities", []))
 
-    if 'targetPlatforms' in manifest:
-        project['app_platforms'] = ','.join(manifest['targetPlatforms'])
-    if 'resources' in manifest and 'media' in manifest['resources']:
-        media_map = manifest['resources']['media']
+    if "targetPlatforms" in manifest:
+        project["app_platforms"] = ",".join(manifest["targetPlatforms"])
+    if "resources" in manifest and "media" in manifest["resources"]:
+        media_map = manifest["resources"]["media"]
     else:
         media_map = {}
-    project_type = manifest.get('projectType', default_project_type)
-    if project_type == 'moddable':
-        project_type = 'alloy'
-    project['project_type'] = project_type
+    project_type = manifest.get("projectType", default_project_type)
+    if project_type == "moddable":
+        project_type = "alloy"
+    project["project_type"] = project_type
     return project, media_map, dependencies

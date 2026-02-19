@@ -93,8 +93,15 @@ CloudPebble.Init = function() {
         CloudPebble.ProgressBar.Hide();
 
         // Add source files.
+        // For alloy projects, binary embeddedjs files go to the Assets section
+        // instead of the Embedded JS source section.
+        var is_alloy = data.type === 'alloy';
         $.each(data.source_files, function(index, value) {
-            CloudPebble.Editor.Add(value);
+            if (is_alloy && value.target === 'embeddedjs' && value.is_binary) {
+                CloudPebble.Resources.AddAlloyAsset(value);
+            } else {
+                CloudPebble.Editor.Add(value);
+            }
         });
         var defaultSource = pickDefaultSourceFile(data.source_files);
         if (defaultSource) {
