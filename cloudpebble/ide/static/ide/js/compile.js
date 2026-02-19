@@ -881,10 +881,6 @@ CloudPebble.Compile = (function() {
             } else {
                 var preferred_qemu = preferred_qemu_platform();
                 if(SharedPebble.isVirtual()) {
-                    var current = SharedPebble.getPlatformName();
-                    if (current && current == ConnectionPlatformNames[preferred_qemu]) {
-                        return ConnectionType.Qemu;
-                    }
                     return preferred_qemu;
                 } else {
                     return preferred_qemu;

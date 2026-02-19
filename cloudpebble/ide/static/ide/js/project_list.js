@@ -1,4 +1,60 @@
 $(function() {
+    var alloyTemplates = [];
+    var alloyTemplateData = $('#alloy-template-data').text();
+    if (alloyTemplateData) {
+        try {
+            alloyTemplates = JSON.parse(alloyTemplateData);
+        } catch (e) {
+            alloyTemplates = [];
+        }
+    }
+
+    var ensureAlloyTemplateSelect = function() {
+        if ($('#alloy-template').length) {
+            return $('#alloy-template');
+        }
+        var select = $('<select id="alloy-template"></select>');
+        var defaultGroup = null;
+        var watchfacesGroup = null;
+        var appsGroup = null;
+
+        $.each(alloyTemplates, function(_, template) {
+            var option = $('<option></option>')
+                .attr('value', template.id)
+                .text(template.label);
+            if (template.group === 'watchfaces/') {
+                if (!watchfacesGroup) {
+                    watchfacesGroup = $('<optgroup label="watchfaces/"></optgroup>');
+                    select.append(watchfacesGroup);
+                }
+                watchfacesGroup.append(option);
+            } else if (template.group === 'apps/') {
+                if (!appsGroup) {
+                    appsGroup = $('<optgroup label="apps/"></optgroup>');
+                    select.append(appsGroup);
+                }
+                appsGroup.append(option);
+            } else {
+                if (!defaultGroup) {
+                    defaultGroup = $('<optgroup label="examples"></optgroup>');
+                    select.append(defaultGroup);
+                }
+                defaultGroup.append(option);
+            }
+        });
+
+        if (!alloyTemplates.length) {
+            select.append(
+                $('<option></option>')
+                    .attr('value', '0')
+                    .text(gettext("Digital watchface"))
+            );
+        }
+
+        select.insertAfter('#project-template');
+        return select;
+    };
+
     $('#create-project').click(function() {
         $('#create-project').find('input button select').removeAttr('disabled');
         $('#project-prompt').modal();
@@ -7,17 +63,8 @@ $(function() {
         var val = $(this).val();
         if(val == 'alloy') {
             $('.sdk-version').hide();
-            // Show alloy-specific template dropdown (cosmetic only; backend uses project_type)
             $('#project-template').val(0).hide();
-            if($('#alloy-template').length === 0) {
-                $('<select id="alloy-template">' +
-                    '<option value="0" selected>' + gettext("Digital watchface") + '</option>' +
-                    '<option value="1">' + gettext("Simple analog watchface") + '</option>' +
-                    '<option value="2">' + gettext("Digital watchface with weather") + '</option>' +
-                  '</select>')
-                    .insertAfter('#project-template');
-            }
-            $('#alloy-template').show();
+            ensureAlloyTemplateSelect().show();
             $('#template-holder').show();
         } else if(val != 'native') {
             $('#project-template').val(0);
@@ -186,4 +233,7 @@ $(function() {
     }
 
     jquery_csrf_setup();
+
+    // Ensure initial UI state is aligned if project type default changes in template.
+    $('#project-type').trigger('change');
 });

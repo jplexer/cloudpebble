@@ -26,6 +26,8 @@ def init_autocomplete(request, project_id):
 
     file_contents = {}
     for f in source_files:
+        if not f.is_editable_text:
+            continue
         content = f.get_contents()
         # Ensure content is string, not bytes
         if isinstance(content, bytes):

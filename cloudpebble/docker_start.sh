@@ -4,6 +4,11 @@ sleep 1
 # Use the system Python 3.11 (not uv's isolated pebble-tool env)
 PYTHON=/usr/local/bin/python
 
+if [ -n "$MODDABLE_EXAMPLES_ROOT" ] && [ -d "$MODDABLE_EXAMPLES_ROOT/.git" ]; then
+	git -C "$MODDABLE_EXAMPLES_ROOT" fetch --depth 1 origin "${MODDABLE_EXAMPLES_BRANCH:-main}" >/dev/null 2>&1 || true
+	git -C "$MODDABLE_EXAMPLES_ROOT" reset --hard "origin/${MODDABLE_EXAMPLES_BRANCH:-main}" >/dev/null 2>&1 || true
+fi
+
 if [ ! -z "$RUN_WEB" ]; then
 	if [ ! -z "$RUN_MIGRATE" ]; then
 		echo "Performing database migration."

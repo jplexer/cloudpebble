@@ -1,6 +1,7 @@
 import re
 import json
 import time
+import logging
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -17,10 +18,12 @@ from ide.tasks.archive import create_archive, do_import_archive
 from ide.tasks.build import run_compile
 from ide.tasks.gist import import_gist
 from ide.tasks.git import do_import_github
+from ide.utils.alloy_templates import list_alloy_templates, build_template_archive
 from utils.td_helper import send_td_event
 from utils.jsonview import json_view, BadRequest
 
 __author__ = 'katharine'
+logger = logging.getLogger(__name__)
 
 NATIVE_DEFAULT_TEMPLATE = """\
 #include <pebble.h>
@@ -431,6 +434,8 @@ def project_info(request, project_id):
                              'id': f.id,
                              'target': f.target,
                              'file_path': f.project_path,
+                             'is_binary': f.is_binary_source,
+                             'is_editable': f.is_editable_text,
                              'lastModified': time.mktime(f.last_modified.utctimetuple())
                          } for f in source_files],
         'resources': [{
@@ -571,7 +576,7 @@ def create_project(request):
         template_id = int(template_id)
     project_type = request.POST.get('type', 'native')
     template_name = None
-    sdk_version = str(request.POST.get('sdk', '4.9.121-1-moddable'))
+    sdk_version = str(request.POST.get('sdk', '4.9.127'))
     try:
         with transaction.atomic():
             app_keys = '[]'
@@ -601,25 +606,35 @@ def create_project(request):
                 f.save_text(open('{}/src/html/demo.js'.format(settings.SIMPLYJS_ROOT)).read())
             elif project_type == 'alloy':
                 alloy_template = request.POST.get('alloy_template', '0')
-                f = SourceFile.objects.create(project=project, file_name="mdbl.c", target='app')
-                f.save_text(ALLOY_C_TEMPLATE)
-                if alloy_template == '2':
-                    js_template = ALLOY_WEATHER_JS_TEMPLATE
-                elif alloy_template == '1':
-                    js_template = ALLOY_ANALOG_JS_TEMPLATE
+                available_alloy_templates = {x['id'] for x in list_alloy_templates()}
+                if alloy_template in available_alloy_templates:
+                    try:
+                        bundle = build_template_archive(alloy_template)
+                        do_import_archive(project.id, bundle, delete_project=True)
+                    except Exception as e:
+                        raise BadRequest(_('Failed to import JavaScript SDK template: %s') % str(e))
                 else:
-                    js_template = ALLOY_JS_TEMPLATE
-                f = SourceFile.objects.create(project=project, file_name="main.js", target='embeddedjs')
-                f.save_text(js_template)
-                f = SourceFile.objects.create(project=project, file_name="manifest.json", target='embeddedjs')
-                f.save_text(ALLOY_MANIFEST_TEMPLATE)
-                if alloy_template == '2':
-                    f = SourceFile.objects.create(project=project, file_name="index.js", target='pkjs')
-                    f.save_text(ALLOY_WEATHER_PKJS_TEMPLATE)
-                    project.app_keys = '["LATITUDE", "LONGITUDE", "REQUEST_LOCATION"]'
-                    project.app_is_watchface = True
-                    project.app_capabilities = 'location'
-                    project.set_dependencies({'@moddable/pebbleproxy': '^0.1.3'})
+                    if alloy_template not in {'0', '1', '2'}:
+                        logger.warning('Unknown alloy template id "%s", falling back to default', alloy_template)
+                    f = SourceFile.objects.create(project=project, file_name="mdbl.c", target='app')
+                    f.save_text(ALLOY_C_TEMPLATE)
+                    if alloy_template == '2':
+                        js_template = ALLOY_WEATHER_JS_TEMPLATE
+                    elif alloy_template == '1':
+                        js_template = ALLOY_ANALOG_JS_TEMPLATE
+                    else:
+                        js_template = ALLOY_JS_TEMPLATE
+                    f = SourceFile.objects.create(project=project, file_name="main.js", target='embeddedjs')
+                    f.save_text(js_template)
+                    f = SourceFile.objects.create(project=project, file_name="manifest.json", target='embeddedjs')
+                    f.save_text(ALLOY_MANIFEST_TEMPLATE)
+                    if alloy_template == '2':
+                        f = SourceFile.objects.create(project=project, file_name="index.js", target='pkjs')
+                        f.save_text(ALLOY_WEATHER_PKJS_TEMPLATE)
+                        project.app_keys = '["LATITUDE", "LONGITUDE", "REQUEST_LOCATION"]'
+                        project.app_is_watchface = True
+                        project.app_capabilities = 'location'
+                        project.set_dependencies({'@moddable/pebbleproxy': '^0.1.3'})
             elif project_type == 'pebblejs':
                 f = SourceFile.objects.create(project=project, file_name="app.js")
                 f.save_text(open('{}/src/js/app.js'.format(settings.PEBBLEJS_ROOT)).read())
@@ -654,7 +669,11 @@ def save_project_settings(request, project_id):
             project.app_capabilities = request.POST['app_capabilities']
             project.app_keys = request.POST['app_keys']
             project.app_jshint = bool(int(request.POST['app_jshint']))
-            project.sdk_version = request.POST['sdk_version']
+            sdk_version = request.POST['sdk_version']
+            valid_sdks = {x[0] for x in Project.SDK_VERSIONS}
+            if sdk_version not in valid_sdks:
+                raise BadRequest(_("Invalid SDK version."))
+            project.sdk_version = sdk_version
             app_platforms = request.POST['app_platforms']
             if app_platforms and project.has_embeddedjs_files:
                 unsupported = set(app_platforms.split(',')) - {'emery', 'gabbro'}
@@ -773,7 +792,7 @@ def get_projects(request):
 def import_zip(request):
     zip_file = request.FILES['archive']
     name = request.POST['name']
-    sdk = request.POST.get('sdk', '4.9.77')
+    sdk = request.POST.get('sdk', '4.9.127')
     valid_sdks = {x[0] for x in Project.SDK_VERSIONS}
     if sdk not in valid_sdks:
         raise BadRequest(_("Invalid SDK version."))
@@ -793,7 +812,7 @@ def import_github(request):
     name = request.POST['name']
     repo = request.POST['repo']
     branch = request.POST['branch']
-    sdk = request.POST.get('sdk', '4.9.77')
+    sdk = request.POST.get('sdk', '4.9.127')
     valid_sdks = {x[0] for x in Project.SDK_VERSIONS}
     if sdk not in valid_sdks:
         raise BadRequest(_("Invalid SDK version."))

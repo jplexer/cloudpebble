@@ -78,8 +78,8 @@
                 <label class="control-label" for="project-type">{% trans "Project type" %}</label>
                 <div class="controls">
                     <select id="project-type">
-                        <option value="native" selected="selected">{% trans "Pebble C SDK" %}</option>
-                        <option value="alloy">{% trans "JavaScript SDK (beta)" %}</option>
+                        <option value="native">{% trans "Pebble C SDK" %}</option>
+                        <option value="alloy" selected="selected">{% trans "JavaScript SDK (beta)" %}</option>
                         <option value="package">{% trans "Pebble Package" %}</option>
                         <!-- <option value="rocky">{% trans "Rocky.js (beta)" %}</option> -->
                         <!-- <option value="pebblejs">{% trans "Pebble.js (beta)" %}</option> -->
@@ -91,8 +91,7 @@
                 <label class="control-label" for="project-sdk-version">{% trans "SDK Version" %}</label>
                 <div class="controls">
                     <select id="project-sdk-version">
-                        <option value="4.9.121-1-moddable" selected>{% trans 'SDK 4.9.121 (Moddable)' %}</option>
-                        <option value="4.9.77">{% trans 'SDK 4.9.77' %}</option>
+                        <option value="4.9.127" selected>{% trans 'SDK 4.9.127' %}</option>
                     </select>
                 </div>
             </div>
@@ -156,8 +155,7 @@
                         <label class="control-label" for="import-zip-sdk-version">{% trans "SDK Version" %}</label>
                         <div class="controls">
                             <select id="import-zip-sdk-version">
-                                <option value="4.9.121-1-moddable">{% trans 'SDK 4.9.121 (Moddable)' %}</option>
-                                <option value="4.9.77" selected>{% trans 'SDK 4.9.77' %}</option>
+                                <option value="4.9.127" selected>{% trans 'SDK 4.9.127' %}</option>
                             </select>
                         </div>
                     </div>
@@ -191,8 +189,7 @@
                         <label class="control-label" for="import-github-sdk-version">{% trans "SDK Version" %}</label>
                         <div class="controls">
                             <select id="import-github-sdk-version">
-                                <option value="4.9.121-1-moddable">{% trans 'SDK 4.9.121 (Moddable)' %}</option>
-                                <option value="4.9.77" selected>{% trans 'SDK 4.9.77' %}</option>
+                                <option value="4.9.127" selected>{% trans 'SDK 4.9.127' %}</option>
                             </select>
                         </div>
                     </div>
@@ -219,7 +216,8 @@
 {% endblock %}
 
 {% block scripts %}
+{{ alloy_templates|json_script:"alloy-template-data" }}
 <script src="/ide/jsi18n/"></script>
 <script src="{% static 'ide/js/csrf.js' %}" type="text/javascript"></script>
-<script src="{% static 'ide/js/project_list.js' %}" type="text/javascript"></script>
+<script src="{% static 'ide/js/project_list.js' %}?v=20260218b" type="text/javascript"></script>
 {% endblock %}

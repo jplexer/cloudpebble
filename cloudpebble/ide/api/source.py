@@ -65,8 +65,10 @@ def load_source_file(request, project_id, file_id):
     source_file = get_object_or_404(SourceFile, pk=file_id, project=project)
 
     content = source_file.get_contents()
-    # Ensure content is a string for JSON serialization
-    if isinstance(content, bytes):
+    read_only = not source_file.is_editable_text
+    if read_only:
+        content = _("This is a binary file and cannot be edited in CloudPebble.")
+    elif isinstance(content, bytes):
         content = content.decode('utf-8')
 
     try:
@@ -83,6 +85,7 @@ def load_source_file(request, project_id, file_id):
 
     return {
         'source': content,
+        'read_only': read_only,
         'modified': time.mktime(source_file.last_modified.utctimetuple()),
         'folded_lines': folded_lines
     }
@@ -145,6 +148,8 @@ def rename_source_file(request, project_id, file_id):
 def save_source_file(request, project_id, file_id):
     project = get_object_or_404(Project, pk=project_id, owner=request.user)
     source_file = get_object_or_404(SourceFile, pk=file_id, project=project)
+    if not source_file.is_editable_text:
+        raise BadRequest(_("Cannot save binary source files from the editor."))
     if source_file.was_modified_since(int(request.POST['modified'])):
         send_td_event('cloudpebble_save_abort_unsafe', data={
             'data': {

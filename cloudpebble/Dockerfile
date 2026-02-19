@@ -2,6 +2,9 @@ FROM python:3.11-slim-bookworm
 LABEL maintainer="CloudPebble Contributors"
 
 ENV NPM_CONFIG_LOGLEVEL=info NODE_VERSION=20.11.0 DJANGO_VERSION=4.2 NODEJS_CHECK_SIGNATURES=no
+ENV MODDABLE_EXAMPLES_ROOT=/opt/pebble-examples \
+    MODDABLE_EXAMPLES_REPO=https://github.com/Moddable-OpenSource/pebble-examples.git \
+    MODDABLE_EXAMPLES_BRANCH=main
 
 # Node stuff.
 RUN apt-get update && apt-get install -y curl && \
@@ -42,14 +45,23 @@ RUN uv tool install pebble-tool --python 3.11
 # Ensure pebble is in PATH
 ENV PATH="/root/.local/share/uv/tools/pebble-tool/bin:$PATH"
 
-# Install Pebble SDKs (downloads SDK + toolchain + QEMU)
-RUN pebble sdk install 4.9.121-1-moddable
-RUN pebble sdk install 4.9.77
-RUN pebble sdk activate 4.9.121-1-moddable
+# Install Pebble SDK (downloads SDK + toolchain + QEMU)
+RUN pebble sdk install 4.9.127
+RUN pebble sdk activate 4.9.127
 
 # Set up SDK paths for CloudPebble
 ENV PEBBLE_SDK_PATH=/root/.pebble-sdk
 ENV PATH="${PEBBLE_SDK_PATH}/SDKs/current/toolchain/arm-none-eabi/bin:$PATH"
+
+# Keep JavaScript SDK examples synced to latest upstream at image build time.
+RUN mkdir -p "$(dirname "$MODDABLE_EXAMPLES_ROOT")" && \
+  if [ -d "$MODDABLE_EXAMPLES_ROOT/.git" ]; then \
+    git -C "$MODDABLE_EXAMPLES_ROOT" fetch --depth 1 origin "$MODDABLE_EXAMPLES_BRANCH" && \
+    git -C "$MODDABLE_EXAMPLES_ROOT" reset --hard "origin/$MODDABLE_EXAMPLES_BRANCH"; \
+  else \
+    rm -rf "$MODDABLE_EXAMPLES_ROOT" && \
+    git clone --depth 1 --branch "$MODDABLE_EXAMPLES_BRANCH" "$MODDABLE_EXAMPLES_REPO" "$MODDABLE_EXAMPLES_ROOT"; \
+  fi
 
 ADD requirements.txt /tmp/requirements.txt
 # Use Python 3.11 from the base image directly

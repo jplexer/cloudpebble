@@ -86,9 +86,14 @@ CloudPebble.Editor = (function() {
         return Ajax.Get('/ide/project/' + PROJECT_ID + '/source/' + file.id + '/load').then(function(data) {
             var source = data.source;
             file.lastModified = data.modified;
+            file.read_only = !!(data.read_only || file.is_editable === false || file.is_binary);
             var pane = $('<div>');
             var file_kind, file_mode;
-            if (/\.js$/.test(file.name)) {
+            if (file.read_only) {
+                file_kind = 'text';
+                file_mode = 'text/plain';
+            }
+            else if (/\.js$/.test(file.name)) {
                 file_kind = 'js';
                 file_mode = 'javascript';
             }
@@ -122,6 +127,9 @@ CloudPebble.Editor = (function() {
                 theme: USER_SETTINGS.theme,
                 foldGutter: true
             };
+            if (file.read_only) {
+                settings.readOnly = true;
+            }
             if(USER_SETTINGS.keybinds !== '') {
                 settings.keyMap = USER_SETTINGS.keybinds;
             }
@@ -523,6 +531,9 @@ CloudPebble.Editor = (function() {
             };
 
             var save = function() {
+                if (file.read_only) {
+                    return Promise.resolve();
+                }
                 // Make sure we're up to date with whatever changed in IB.
                 if(ib_showing) {
                     var content = code_mirror.getValue();
@@ -653,6 +664,10 @@ CloudPebble.Editor = (function() {
             var error_area = $('<div>');
 
             save_btn.click(function() {
+                if (file.read_only) {
+                    alert(gettext("This file is read-only and cannot be edited."));
+                    return;
+                }
                 save().catch(alert);
             });
             delete_btn.click(function() {
@@ -724,6 +739,11 @@ CloudPebble.Editor = (function() {
             }).click(function() { $(this).popover('hide'); });
 
             ib_btn.click(toggle_ib);
+            if (file.read_only) {
+                save_btn.prop('disabled', true);
+                discard_btn.prop('disabled', true);
+                ib_btn.prop('disabled', true);
+            }
 
             button_holder.append(error_area);
             button_holder.append(run_btn);

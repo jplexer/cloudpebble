@@ -3,6 +3,7 @@ import json
 import mock
 from django.core.urlresolvers import reverse
 from ide.utils.cloudpebble_test import CloudpebbleTestCase
+from ide.models.files import SourceFile
 from utils.fakes import FakeS3
 
 __author__ = 'joe'
@@ -123,3 +124,14 @@ class TestSource(CloudpebbleTestCase):
         loaded = self.load_file(info['id'])
         self.rename_file(info['id'], int(loaded['modified'] - 5000), name1, name2, success=False)
         self.assertIn(name1, self.get_source_names())
+
+    def test_binary_embedded_file_is_read_only(self):
+        self.login(type='alloy')
+        source = SourceFile.objects.create(project_id=self.project_id, file_name='emery/dial.png', target='embeddedjs')
+        source.save_string(b'\x89PNG\r\n')
+
+        loaded = self.load_file(source.id)
+        self.assertTrue(loaded['read_only'])
+        self.assertIn('binary file', loaded['source'])
+
+        self.save_file(source.id, int(loaded['modified']), content='overwrite', success=False)

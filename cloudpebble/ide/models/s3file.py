@@ -39,7 +39,12 @@ class S3File(IdeModel):
 
     def _get_contents_local(self):
         try:
-            return open(self.local_filename).read()
+            with open(self.local_filename, 'rb') as handle:
+                data = handle.read()
+            try:
+                return data.decode('utf-8')
+            except UnicodeDecodeError:
+                return data
         except IOError:
             if self._create_local_if_not_exists:
                 return ''

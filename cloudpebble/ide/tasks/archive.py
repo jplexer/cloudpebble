@@ -275,7 +275,11 @@ def do_import_archive(project_id, archive, delete_project=False):
                             source = SourceFile.objects.create(project=project, file_name=base_filename, target=target)
 
                             with z.open(entry.filename) as f:
-                                source.save_text(f.read().decode('utf-8'))
+                                raw = f.read()
+                                if source.is_editable_text:
+                                    source.save_text(raw.decode('utf-8'))
+                                else:
+                                    source.save_string(raw)
 
                     # Now add all the resource identifiers
                     for root_file_name in desired_resources:

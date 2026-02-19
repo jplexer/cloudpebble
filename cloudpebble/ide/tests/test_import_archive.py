@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from ide.tasks.archive import do_import_archive, InvalidProjectArchiveException
 from ide.utils.cloudpebble_test import CloudpebbleTestCase, make_package, make_appinfo, build_bundle, override_settings
 from ide.models.project import Project
+from ide.models.files import SourceFile
 from utils.fakes import FakeS3
 
 __author__ = 'joe'
@@ -169,6 +170,26 @@ class TestImportArchive(CloudpebbleTestCase):
         self.assertEqual(project.source_files.filter(file_name='index.js', target='app').count(), 1)
         self.assertEqual(project.source_files.filter(file_name='lib.js', target='common').count(), 1)
         self.assertEqual(project.source_files.filter(file_name='app.js', target='pkjs').count(), 1)
+
+    def test_import_alloy_binary_embedded_assets(self):
+        bundle = build_bundle({
+            'src/c/mdbl.c': 'int main(void) { return 0; }',
+            'src/embeddedjs/main.js': 'trace("ok");',
+            'src/embeddedjs/manifest.json': '{}',
+            'src/embeddedjs/hours.pdc': 'PDC',
+            'src/embeddedjs/emery/dial.png': b'\x89PNG\r\n',
+            'package.json': make_package(pebble_options={'projectType': 'alloy'})
+        })
+        do_import_archive(self.project_id, bundle)
+        project = Project.objects.get(pk=self.project_id)
+        project_files = {(f.file_name, f.target): f for f in project.source_files.all()}
+        self.assertIn(('hours.pdc', 'embeddedjs'), project_files)
+        self.assertIn(('emery/dial.png', 'embeddedjs'), project_files)
+        self.assertTrue(project_files[('hours.pdc', 'embeddedjs')].is_binary_source)
+        self.assertTrue(project_files[('emery/dial.png', 'embeddedjs')].is_binary_source)
+
+        dial_file = SourceFile.objects.get(project=project, file_name='emery/dial.png', target='embeddedjs')
+        self.assertEqual(dial_file.get_contents(), b'\x89PNG\r\n')
 
 
 @mock.patch('ide.models.s3file.s3', fake_s3)

@@ -308,6 +308,11 @@ class SourceFile(TextFile):
             ('app', ['src/c', 'src']),
         ])
     }
+    TEXT_EXTENSIONS = {'.c', '.h', '.js', '.json'}
+
+    @staticmethod
+    def _normalise_path(path):
+        return path.replace('\\', '/')
 
     @classmethod
     def get_details_for_path(cls, project_type, path):
@@ -315,6 +320,7 @@ class SourceFile(TextFile):
         Given a project type and a path to a source file, determine what the file's target should be and
         what its name should be.
         """
+        path = cls._normalise_path(path)
         targets = cls.DIR_MAP[project_type]
         for target in targets:
             for base in targets[target]:
@@ -327,14 +333,29 @@ class SourceFile(TextFile):
             break
         else:
             raise ValueError(_("Unacceptable file path for this project [%s]") % path)
-        if file_target in ('pkjs', 'common', 'embeddedjs') or project_type in ('pebblejs', 'simplyjs', 'rocky'):
+        if file_target == 'embeddedjs':
+            expected_exts = None
+        elif file_target in ('pkjs', 'common') or project_type in ('pebblejs', 'simplyjs', 'rocky'):
             expected_exts = ('.js', '.json')
         else:
             expected_exts = ('.c', '.h')
-        if not path.endswith(expected_exts):
+        if expected_exts is None:
+            _, ext = os.path.splitext(path)
+            if not ext:
+                raise ValueError(_("Unacceptable file extension for %s file in [%s].") % (file_target, path))
+        elif not path.endswith(expected_exts):
             raise ValueError(_("Unacceptable file extension for %s file in [%s]. Expecting %s") %
                              (file_target, path, " or ".join(expected_exts)))
         return path[len(base):], file_target
+
+    @property
+    def is_binary_source(self):
+        _, ext = os.path.splitext(self.file_name.lower())
+        return ext not in self.TEXT_EXTENSIONS
+
+    @property
+    def is_editable_text(self):
+        return not self.is_binary_source
 
     @property
     def project_path(self):
@@ -346,6 +367,14 @@ class SourceFile(TextFile):
             return SourceFile.DIR_MAP[self.project.project_type][self.target][0]
         except KeyError:
             Exception("Invalid file type in project")
+
+    def clean(self):
+        super(SourceFile, self).clean()
+        if self.project and self.target:
+            base = SourceFile.DIR_MAP[self.project.project_type][self.target][0]
+            path = os.path.join(base, self.file_name)
+            # Validate target/path and extension together.
+            SourceFile.get_details_for_path(self.project.project_type, path)
 
     class Meta(IdeModel.Meta):
         db_table = 'cloudpebble_source_files'
