@@ -98,10 +98,15 @@ CloudPebble.Init = function() {
         var is_alloy = data.type === 'alloy';
         $.each(data.source_files, function(index, value) {
             if (is_alloy && value.target === 'embeddedjs' && value.is_binary) {
-                CloudPebble.Resources.AddAlloyAsset(value);
-            } else {
-                CloudPebble.Editor.Add(value);
+                // Guard against mixed cached frontend bundles during deploys.
+                // If Resources.AddAlloyAsset is unavailable, keep binary files out
+                // of the editor and rely on the unified Resources payload.
+                if (CloudPebble.Resources && _.isFunction(CloudPebble.Resources.AddAlloyAsset)) {
+                    CloudPebble.Resources.AddAlloyAsset(value);
+                }
+                return;
             }
+            CloudPebble.Editor.Add(value);
         });
         var defaultSource = pickDefaultSourceFile(data.source_files);
         if (defaultSource) {
