@@ -14,23 +14,31 @@ $(function() {
             return $('#alloy-template');
         }
         var select = $('<select id="alloy-template"></select>');
+        var tutorialGroup = null;
         var defaultGroup = null;
         var watchfacesGroup = null;
         var appsGroup = null;
 
         $.each(alloyTemplates, function(_, template) {
+            var submenu = template.dir || template.group;
             var option = $('<option></option>')
                 .attr('value', template.id)
                 .text(template.label);
-            if (template.group === 'watchfaces/') {
+            if (submenu === 'watchface-tutorial/') {
+                if (!tutorialGroup) {
+                    tutorialGroup = $('<optgroup label="watchface-tutorial"></optgroup>');
+                    select.append(tutorialGroup);
+                }
+                tutorialGroup.append(option);
+            } else if (submenu === 'watchfaces/') {
                 if (!watchfacesGroup) {
-                    watchfacesGroup = $('<optgroup label="watchfaces/"></optgroup>');
+                    watchfacesGroup = $('<optgroup label="watchfaces"></optgroup>');
                     select.append(watchfacesGroup);
                 }
                 watchfacesGroup.append(option);
-            } else if (template.group === 'apps/') {
+            } else if (submenu === 'apps/') {
                 if (!appsGroup) {
-                    appsGroup = $('<optgroup label="apps/"></optgroup>');
+                    appsGroup = $('<optgroup label="apps"></optgroup>');
                     select.append(appsGroup);
                 }
                 appsGroup.append(option);

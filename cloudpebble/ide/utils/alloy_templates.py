@@ -4,13 +4,31 @@ import os
 import zipfile
 
 EXAMPLES_ROOT = '/opt/pebble-examples'
+WATCHFACE_TUTORIAL_ROOT = '/opt/watchface-tutorial'
+WATCHFACE_TUTORIAL_PREFIX = 'watchface-tutorial'
+WATCHFACE_TUTORIAL_PARTS = [
+    ('part1', 'Your First Watchface'),
+    ('part2', 'Customizing Your Watchface'),
+    ('part3', 'Adding Battery and Bluetooth'),
+    ('part4', 'Adding Weather'),
+    ('part5', 'Adding User Settings'),
+]
 
 
 def _examples_root():
     return EXAMPLES_ROOT
 
 
+def _watchface_tutorial_root():
+    return WATCHFACE_TUTORIAL_ROOT
+
+
 def _template_display_name(path):
+    if path.startswith(WATCHFACE_TUTORIAL_PREFIX + '/'):
+        slug = path.split('/')[-1]
+        label_map = dict(WATCHFACE_TUTORIAL_PARTS)
+        if slug in label_map:
+            return label_map[slug]
     if path.startswith('piu/watchfaces/'):
         return path.split('/')[-1]
     if path.startswith('piu/apps/'):
@@ -19,6 +37,8 @@ def _template_display_name(path):
 
 
 def _template_group(path):
+    if path.startswith(WATCHFACE_TUTORIAL_PREFIX + '/'):
+        return 'watchface-tutorial/'
     if path.startswith('piu/watchfaces/'):
         return 'watchfaces/'
     if path.startswith('piu/apps/'):
@@ -37,12 +57,17 @@ def _ordered_paths(paths):
     def _remainder_key(value):
         return value.lower()
 
+    tutorial = [p for p in unique_paths if p.startswith(WATCHFACE_TUTORIAL_PREFIX + '/')]
+    tutorial_order = [WATCHFACE_TUTORIAL_PREFIX + '/' + slug for slug, _ in WATCHFACE_TUTORIAL_PARTS]
+    tutorial_rank = {path: idx for idx, path in enumerate(tutorial_order)}
+    tutorial = sorted(tutorial, key=lambda p: tutorial_rank.get(p, 9999))
+
     watchfaces = sorted([p for p in unique_paths if p.startswith('piu/watchfaces/')], key=_remainder_key)
     apps = sorted([p for p in unique_paths if p.startswith('piu/apps/')], key=_remainder_key)
 
-    consumed = set(watchfaces + apps)
+    consumed = set(tutorial + watchfaces + apps)
     remainder = sorted([p for p in unique_paths if p not in consumed], key=_remainder_key)
-    return watchfaces + apps + remainder
+    return tutorial + watchfaces + apps + remainder
 
 
 def _is_moddable_project(project_dir):
@@ -61,33 +86,51 @@ def _is_moddable_project(project_dir):
 
 
 def list_alloy_templates():
-    root = _examples_root()
-    if not os.path.isdir(root):
-        return []
-
     paths = []
-    for dirpath, dirnames, _ in os.walk(root):
-        dirnames[:] = [d for d in dirnames if not d.startswith('.') and d != '.git']
-        if _is_moddable_project(dirpath):
-            relpath = os.path.relpath(dirpath, root).replace('\\', '/')
-            paths.append(relpath)
-            dirnames[:] = []
+    examples_root = _examples_root()
+    if os.path.isdir(examples_root):
+        for dirpath, dirnames, _ in os.walk(examples_root):
+            dirnames[:] = [d for d in dirnames if not d.startswith('.') and d != '.git']
+            if _is_moddable_project(dirpath):
+                relpath = os.path.relpath(dirpath, examples_root).replace('\\', '/')
+                paths.append(relpath)
+                dirnames[:] = []
+
+    tutorial_root = _watchface_tutorial_root()
+    if os.path.isdir(tutorial_root):
+        for slug, _ in WATCHFACE_TUTORIAL_PARTS:
+            part_dir = os.path.join(tutorial_root, slug)
+            if os.path.isdir(part_dir) and _is_moddable_project(part_dir):
+                paths.append('%s/%s' % (WATCHFACE_TUTORIAL_PREFIX, slug))
+
+    if not paths:
+        return []
 
     templates = []
     for path in _ordered_paths(paths):
+        template_dir = _template_group(path)
         templates.append({
             'id': path,
             'path': path,
             'label': _template_display_name(path),
-            'group': _template_group(path),
+            'dir': template_dir,
+            'group': template_dir,
         })
     return templates
 
 
-def build_template_archive(template_path):
+def _resolve_template_directory(template_path):
+    if template_path.startswith(WATCHFACE_TUTORIAL_PREFIX + '/'):
+        slug = template_path.split('/', 1)[1]
+        root = _watchface_tutorial_root()
+        return os.path.normpath(os.path.join(root, slug)), os.path.normpath(root)
     root = _examples_root()
-    target_dir = os.path.normpath(os.path.join(root, template_path))
-    if not target_dir.startswith(os.path.normpath(root) + os.sep):
+    return os.path.normpath(os.path.join(root, template_path)), os.path.normpath(root)
+
+
+def build_template_archive(template_path):
+    target_dir, root = _resolve_template_directory(template_path)
+    if not target_dir.startswith(root + os.sep):
         raise ValueError('Invalid template path')
     if not os.path.isdir(target_dir):
         raise ValueError('Template path does not exist')

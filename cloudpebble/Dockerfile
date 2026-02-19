@@ -58,6 +58,13 @@ RUN mkdir -p /opt && \
   else \
     rm -rf /opt/pebble-examples && \
     git clone --depth 1 --branch main "https://github.com/Moddable-OpenSource/pebble-examples.git" "/opt/pebble-examples"; \
+  fi && \
+  if [ -d "/opt/watchface-tutorial/.git" ]; then \
+    git -C "/opt/watchface-tutorial" fetch --depth 1 origin main && \
+    git -C "/opt/watchface-tutorial" reset --hard "origin/main"; \
+  else \
+    rm -rf /opt/watchface-tutorial && \
+    git clone --depth 1 --branch main "https://github.com/coredevices/alloy-watchface-tutorial.git" "/opt/watchface-tutorial"; \
   fi
 
 ADD requirements.txt /tmp/requirements.txt
