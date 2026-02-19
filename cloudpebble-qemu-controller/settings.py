@@ -21,3 +21,7 @@ HOST = env.get('QCON_HOST', '0.0.0.0')
 RUN_AS_USER = env.get('RUN_AS_USER', None)
 
 DEBUG = 'DEBUG' in env
+
+# pypkjs private-address blocking can break outbound HTTPS in some environments.
+# Keep it configurable; default disabled for dev stability.
+BLOCK_PRIVATE_ADDRESSES = env.get('BLOCK_PRIVATE_ADDRESSES', 'no').lower() in ('1', 'true', 'yes', 'on')

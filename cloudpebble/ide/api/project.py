@@ -687,7 +687,7 @@ def save_project_settings(request, project_id):
             project.app_is_shown_on_communication = bool(int(request.POST['app_is_shown_on_communication']))
             project.app_capabilities = request.POST['app_capabilities']
             project.app_keys = request.POST['app_keys']
-            project.app_jshint = bool(int(request.POST['app_jshint']))
+            project.app_jshint = False
             sdk_version = request.POST['sdk_version']
             valid_sdks = {x[0] for x in Project.SDK_VERSIONS}
             if sdk_version not in valid_sdks:

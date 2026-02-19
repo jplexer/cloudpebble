@@ -25,8 +25,7 @@ CloudPebble.ProjectProperties = (function() {
         'js_only': ['simplyjs', 'pebblejs', 'rocky'],
         'is_runnable': ['native', 'pebblejs', 'simplyjs', 'rocky', 'alloy'],
         'supports_message_keys': ['native', 'package', 'alloy'],
-        'supports_aplite': ['native', 'package', 'simplyjs', 'pebblejs'],
-        'supports_jslint': ['native', 'package', 'pebblejs', 'rocky']
+        'supports_aplite': ['native', 'package', 'simplyjs', 'pebblejs']
     };
     var obj = {
         Init: function() {

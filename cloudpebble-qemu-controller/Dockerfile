@@ -43,10 +43,22 @@ ENV PATH="/root/.local/bin:$PATH"
 # Install pypkjs from coredevices
 RUN uv pip install --system git+https://github.com/coredevices/pypkjs.git
 
+# pypkjs relies on requests/urllib3 internals that changed in urllib3 2.x.
+# Pin to known-compatible versions so XMLHttpRequest works in emulator PKJS.
+RUN uv pip install --system "requests<2.32" "urllib3<2"
+
 # Fix pypkjs Python 3 bug: struct.unpack returns bytes but token from
 # argparse is str, so auth comparison always fails. Decode bytes to str.
 RUN sed -i 's/if token == self\.token:/if token.decode("utf-8") == self.token:/' \
   /usr/local/lib/python3.11/site-packages/pypkjs/runner/websocket.py
+
+# Fix pypkjs safe_requests adapter for newer urllib3 PoolManager API.
+RUN sed -i 's/def _new_pool(self, scheme, host, port):/def _new_pool(self, scheme, host, port, request_context=None):/' \
+  /usr/local/lib/python3.11/site-packages/pypkjs/javascript/safe_requests.py
+
+# Prefer IPv4 for pypkjs HTTP calls in cloud emulation to avoid IPv6 route stalls.
+RUN sed -i 's/socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)/socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)/' \
+  /usr/local/lib/python3.11/site-packages/pypkjs/javascript/safe_requests.py
 
 # Controller deps
 ADD requirements.txt /tmp/requirements.txt

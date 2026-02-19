@@ -28,9 +28,6 @@ CloudPebble.Settings = (function() {
         if(!(CloudPebble.ProjectProperties.supports_message_keys)) {
             pane.find('.supports-message-keys').hide();
         }
-        if(!(CloudPebble.ProjectProperties.supports_jslint)) {
-            pane.find('.supports-jslint').hide();
-        }
         // Embedded JS projects (alloy) can only target emery and gabbro
         var has_embeddedjs = CloudPebble.ProjectInfo.has_embeddedjs ||
             _.some(CloudPebble.Editor.GetAllFiles(), function(f) { return f.target == 'embeddedjs'; });
@@ -60,7 +57,6 @@ CloudPebble.Settings = (function() {
             var app_uuid = pane.find('#settings-uuid').val();
             var app_is_watchface = pane.find('#settings-app-is-watchface').val();
             var app_key_array_style = pane.find('#settings-message-key-kind').val() == "1";
-            var app_jshint = pane.find('#settings-app-jshint').prop("checked") ? 1 : 0;
             var app_modern_multi_js = pane.find('#settings-modern-multi-js').val();
             var menu_icon = pane.find('#settings-menu-image').val();
             var build_aplite = pane.find('#settings-build-aplite:visible').prop('checked');
@@ -198,7 +194,6 @@ CloudPebble.Settings = (function() {
             saved_settings['app_is_hidden'] = app_is_hidden;
             saved_settings['app_is_shown_on_communication'] = app_is_shown_on_communication;
             saved_settings['app_keys'] = JSON.stringify(app_keys);
-            saved_settings['app_jshint'] = app_jshint;
             saved_settings['menu_icon'] = menu_icon;
             saved_settings['app_platforms'] = app_platforms;
             saved_settings['app_modern_multi_js'] = app_modern_multi_js;
@@ -217,7 +212,6 @@ CloudPebble.Settings = (function() {
                 CloudPebble.ProjectInfo.app_is_hidden = app_is_hidden;
                 CloudPebble.ProjectInfo.app_is_shown_on_communication = app_is_shown_on_communication;
                 CloudPebble.ProjectInfo.app_capabilities = app_capabilities;
-                CloudPebble.ProjectInfo.app_jshint = app_jshint;
                 CloudPebble.ProjectInfo.app_platforms = app_platforms;
                 CloudPebble.ProjectInfo.sdk_version = sdk_version;
                 CloudPebble.ProjectInfo.app_modern_multi_js = app_modern_multi_js;

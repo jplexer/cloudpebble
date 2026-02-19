@@ -222,8 +222,9 @@ class Emulator(object):
             '--port', str(self.ws_port),
             '--token', self.token,
             '--persist', self.persist_dir,
-            '--block-private-addresses',
         ] + oauth_arg
+        if settings.BLOCK_PRIVATE_ADDRESSES:
+            cmd.append('--block-private-addresses')
         logging.info("spawning pkjs: token=%r (len=%d), cmd=%s", self.token, len(self.token), cmd)
         self.pkjs = subprocess.Popen(cmd, env=env)
         self.group.spawn(self.pkjs.communicate)

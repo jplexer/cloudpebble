@@ -46,7 +46,7 @@ def build(ctx):
                                          'src/common/**/*.js']),
                    js_entry_file='src/pkjs/index.js',
                    bin_type='rocky')'''
-    return wscript.replace('{{jshint}}', 'True' if jshint and not for_export else 'False')
+    return wscript.replace('{{jshint}}', 'False')
 
 
 def generate_wscript_file_sdk2(project, for_export=False):
@@ -109,7 +109,7 @@ def build(ctx):
                        js='pebble-js-app.js' if has_js else [])
 
 """
-    return wscript.replace('{{jshint}}', 'True' if jshint and not for_export else 'False')
+    return wscript.replace('{{jshint}}', 'False')
 
 
 def generate_wscript_file_package(project, for_export):
@@ -176,7 +176,7 @@ def build(ctx):
         for n in ctx.path.ant_glob(['dist/**/*', 'dist.zip'], quiet=True):
             n.delete()
 """
-    return wscript.replace('{{jshint}}', 'True' if jshint and not for_export else 'False')
+    return wscript.replace('{{jshint}}', 'False')
 
 
 def generate_wscript_file_sdk3(project, for_export):
@@ -299,7 +299,7 @@ def build(ctx):
     ctx.set_group('bundle')
     ctx.pbl_bundle(binaries=binaries, js=ctx.path.ant_glob(['src/pkjs/**/*.js', 'src/pkjs/**/*.json']), js_entry_file='src/pkjs/{{pkjs_entry}}')
 """
-    return wscript.replace('{{jshint}}', 'True' if jshint and not for_export else 'False').replace('{{pkjs_entry}}', project.pkjs_entry_point or '')
+    return wscript.replace('{{jshint}}', 'False').replace('{{pkjs_entry}}', project.pkjs_entry_point or '')
 
 
 def generate_wscript_file_alloy(project, for_export):
@@ -362,7 +362,7 @@ def build(ctx):
     ctx.set_group('bundle')
     ctx.pbl_bundle(binaries=binaries, js=ctx.path.ant_glob(['src/pkjs/**/*.js', 'src/pkjs/**/*.json']), js_entry_file='src/pkjs/{{pkjs_entry}}')
 """
-    return wscript.replace('{{jshint}}', 'True' if jshint and not for_export else 'False').replace('{{pkjs_entry}}', project.pkjs_entry_point or '')
+    return wscript.replace('{{jshint}}', 'False').replace('{{pkjs_entry}}', project.pkjs_entry_point or '')
 
 
 def generate_wscript_file(project, for_export=False):

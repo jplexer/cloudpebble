@@ -285,7 +285,7 @@ CloudPebble.Editor = (function() {
                 });
             }
 
-            if(file_kind_in(['json', 'js'])) {
+            if(file_kind_in(['json'])) {
                 var warning_lines = [];
                 var do_hint = function() {
                     var errors = [];
@@ -297,74 +297,15 @@ CloudPebble.Editor = (function() {
                     });
                     warning_lines = [];
 
-                    if (file_kind == 'js') {
-                        var jshint_globals = {
-                            console: true,
-                            setTimeout: true,
-                            setInterval: true,
-                            Int8Array: true,
-                            Uint8Array: true,
-                            Uint8ClampedArray: true,
-                            Int16Array: true,
-                            Uint16Array: true,
-                            Int32Array: true,
-                            Uint32Array: true,
-                            Float32Array: true,
-                            Float64Array: true
-                        };
-
-                        if (CloudPebble.ProjectInfo.type != 'rocky') {
-                            _.extend(jshint_globals, {
-                                Pebble: true,
-                                WebSocket: true,
-                                XMLHttpRequest: true,
-                                navigator: true,
-                                localStorage: true
-                            });
-                        }
-
-                        if (CloudPebble.ProjectInfo.type == 'simplyjs') {
-                            _.extend(jshint_globals, {
-                                simply: true,
-                                util2: true,
-                                ajax: true
-                            });
-                        } else if (CloudPebble.ProjectInfo.type == 'pebblejs') {
-                            _.extend(jshint_globals, {
-                                require: true,
-                                ajax: true
-                            });
-                        } else if (CloudPebble.ProjectInfo.app_modern_multi_js) {
-                            _.extend(jshint_globals, {
-                                require: true,
-                                exports: true,
-                                module: true
-                            });
-                        }
-
-                        var success = JSHINT(code_mirror.getValue(), {
-                            freeze: true,
-                            evil: false,
-                            immed: true,
-                            latedef: "nofunc",
-                            undef: true,
-                            unused: "vars"
-                        }, jshint_globals);
-                        if (!success) {
-                            errors = JSHINT.errors;
-                        }
+                    var code = code_mirror.getValue();
+                    try {
+                        json_parse(code);
                     }
-                    else {
-                        var code = code_mirror.getValue();
-                        try {
-                            json_parse(code);
-                        }
-                        catch (e) {
-                            errors = [{
-                                reason: e.message,
-                                line: code.slice(0, e.at).split('\n').length
-                            }]
-                        }
+                    catch (e) {
+                        errors = [{
+                            reason: e.message,
+                            line: code.slice(0, e.at).split('\n').length
+                        }]
                     }
 
                     _.each(errors, function(error) {
