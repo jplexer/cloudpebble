@@ -201,6 +201,16 @@ def do_import_archive(project_id, archive, delete_project=False):
 
                     for k, v in project_options.items():
                         setattr(project, k, v)
+                    if project.project_type == 'alloy':
+                        # Some upstream Alloy examples still ship object-style app keys.
+                        # Normalize to array format before model validation.
+                        app_keys = json.loads(project.app_keys)
+                        if isinstance(app_keys, dict):
+                            if all(isinstance(v, int) for v in app_keys.values()):
+                                app_keys = [k for k, _ in sorted(app_keys.items(), key=lambda item: item[1])]
+                            else:
+                                app_keys = list(app_keys.keys())
+                            project.app_keys = json.dumps(app_keys)
                     project.full_clean()
                     project.set_dependencies(dependencies)
 

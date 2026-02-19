@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y curl && \
   tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 && \
   rm "node-v$NODE_VERSION-linux-x64.tar.gz" SHASUMS256.txt.asc
 
-RUN npm install -g jshint@2.13.6
+RUN npm install -g jshint@2.13.6 typescript@3.9.10
 
 # Django stuff + emulator dependencies
 RUN apt-get update && apt-get install -y \

@@ -644,6 +644,19 @@ def create_project(request):
                 # do_import_archive() persists imported metadata (including targetPlatforms) using its own Project instance.
                 # Refresh to avoid writing stale defaults back over imported values.
                 project.refresh_from_db()
+                # Upstream imported JS templates may intentionally use style that fails legacy JSHint defaults.
+                # Keep creation/build parity with source templates by disabling JSHint on imported Alloy projects.
+                if project_type == 'alloy':
+                    project.app_jshint = False
+                    # Some imported templates still use object-style appKeys.
+                    # Normalize to array format required by Alloy project validation.
+                    app_keys = json.loads(project.app_keys)
+                    if isinstance(app_keys, dict):
+                        if all(isinstance(v, int) for v in app_keys.values()):
+                            app_keys = [k for k, _ in sorted(app_keys.items(), key=lambda item: item[1])]
+                        else:
+                            app_keys = list(app_keys.keys())
+                        project.app_keys = json.dumps(app_keys)
             project.full_clean()
             project.save()
     except IntegrityError as e:
