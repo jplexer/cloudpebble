@@ -77,6 +77,8 @@ ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://localhost:8080',
+    'https://cloudpebble-dev.exe.xyz',
+    'https://cloudpebble-og-dev.exe.xyz',
 ]
 _public_url = os.environ.get('PUBLIC_URL', '').rstrip('/')
 if _public_url:
