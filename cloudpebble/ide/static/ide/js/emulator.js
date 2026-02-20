@@ -80,22 +80,30 @@ CloudPebble.Emulator = new (function() {
     function setBatteryState(e) {
         self._batteryLevel = parseInt($('.emulator-config .battery-level').val(), 10);
         self._charging = $('.emulator-config #is-charging').prop('checked');
-        SharedPebble.getPebbleNow().emu_set_battery_state(self._batteryLevel, self._charging);
+        SharedPebble.getPebble(ConnectionType.Qemu).then(function(pebble) {
+            pebble.emu_set_battery_state(self._batteryLevel, self._charging);
+        });
     }
 
     function setBluetoothState(e) {
         self._bluetooth = $('.emulator-config #bluetooth-enabled').prop('checked');
-        SharedPebble.getPebbleNow().emu_bluetooth(self._bluetooth);
+        SharedPebble.getPebble(ConnectionType.Qemu).then(function(pebble) {
+            pebble.emu_bluetooth(self._bluetooth);
+        });
     }
 
     function set24HState(e) {
         self._24h = $('.emulator-config #24h-enabled').prop('checked');
-        SharedPebble.getPebbleNow().emu_set_24h(self._24h);
+        SharedPebble.getPebble(ConnectionType.Qemu).then(function(pebble) {
+            pebble.emu_set_24h(self._24h);
+        });
     }
 
     function setTimelinePeek(e) {
         self._timelinePeek = $('.emulator-config #peek-showing').prop('checked');
-        SharedPebble.getPebbleNow().emu_set_peek(self._timelinePeek);
+        SharedPebble.getPebble(ConnectionType.Qemu).then(function(pebble) {
+            pebble.emu_set_peek(self._timelinePeek);
+        });
     }
 
     function doSensors(e) {
