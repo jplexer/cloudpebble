@@ -43,6 +43,33 @@ RUN uv tool install pebble-tool --python 3.11
 # Ensure pebble is in PATH
 ENV PATH="/root/.local/share/uv/tools/pebble-tool/bin:$PATH"
 
+# Work around pebble-tool progress bar overflow during SDK downloads.
+# Keep using latest pebble-tool without pinning, but clamp update values so
+# transient content-length mismatches don't fail the build.
+RUN python - <<'PY'
+from pathlib import Path
+import re
+
+manager = Path("/root/.local/share/uv/tools/pebble-tool/lib/python3.11/site-packages/pebble_tool/sdk/manager.py")
+text = manager.read_text()
+old = "bar.update(bar.currval + len(content))"
+new = "bar.update(min(getattr(bar, 'max_value', getattr(bar, 'maxval', bar.currval + len(content))), bar.currval + len(content)))"
+
+if old in text:
+    manager.write_text(text.replace(old, new))
+else:
+    # Fallback for minor upstream formatting differences.
+    patched = re.sub(
+        r"bar\.update\(\s*bar\.currval\s*\+\s*len\(content\)\s*\)",
+        "bar.update(min(getattr(bar, 'max_value', getattr(bar, 'maxval', bar.currval + len(content))), bar.currval + len(content)))",
+        text,
+        count=1,
+    )
+    if patched == text:
+        raise RuntimeError("Could not patch pebble_tool/sdk/manager.py progress update line")
+    manager.write_text(patched)
+PY
+
 # Install Pebble SDK (downloads SDK + toolchain + QEMU)
 RUN pebble sdk install 4.9.127
 RUN pebble sdk activate 4.9.127
