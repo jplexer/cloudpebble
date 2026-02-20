@@ -260,10 +260,11 @@ Key variables set in `docker-compose.yml`:
 
 ## Credits
 
-- Originally written by Katharine Berry, supported by [Pebble Technology](https://github.com/pebble)
+- Originally created by Katharine Berry
+- Later supported by [Pebble Technology](https://github.com/pebble)
 - Community revival at [Rebble](https://rebble.io)
 - Docker Compose setup by [iSevenDays](https://github.com/iSevenDays/cloudpebble-composed)
-- 2026 modernization by Eric Migicovsky
+- 2026 modernization by Eric Migicovsky (and Claude Code!)
 
 ## License
 
