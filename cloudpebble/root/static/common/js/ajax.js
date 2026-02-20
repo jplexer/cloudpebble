@@ -46,7 +46,10 @@ Ajax = (function() {
                         handle_traceback(jqXHR.responseJSON.traceback);
                     }
                     else {
-                        message = errorStatusText;
+                        message = errorStatusText || (jqXHR && jqXHR.statusText) || gettext("Request failed.");
+                        if (jqXHR && jqXHR.status) {
+                            message += " (" + jqXHR.status + ")";
+                        }
                     }
                     var error = new Error(message);
                     if (jqXHR) {
@@ -136,4 +139,3 @@ Ajax = (function() {
         Wrapper: Wrapper
     }
 })();
-

@@ -12,6 +12,10 @@ if [ -d "/opt/watchface-tutorial/.git" ]; then
 	git -C "/opt/watchface-tutorial" fetch --depth 1 origin main >/dev/null 2>&1 || true
 	git -C "/opt/watchface-tutorial" reset --hard "origin/main" >/dev/null 2>&1 || true
 fi
+if [ -d "/opt/c-watchface-tutorial/.git" ]; then
+	git -C "/opt/c-watchface-tutorial" fetch --depth 1 origin main >/dev/null 2>&1 || true
+	git -C "/opt/c-watchface-tutorial" reset --hard "origin/main" >/dev/null 2>&1 || true
+fi
 
 if [ ! -z "$RUN_WEB" ]; then
 	if [ ! -z "$RUN_MIGRATE" ]; then

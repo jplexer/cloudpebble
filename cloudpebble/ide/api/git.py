@@ -5,7 +5,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 from django.utils.translation import gettext as _
-from github import UnknownObjectException
+from github import UnknownObjectException, GithubException
 import ide.git
 from ide.models.project import Project
 from ide.tasks.git import do_github_push, do_github_pull
@@ -130,7 +130,12 @@ def create_project_repo(request, project_id):
     repo = request.POST['repo']
     description = request.POST['description']
 
-    repo = ide.git.create_repo(request.user, repo, description)
+    try:
+        repo = ide.git.create_repo(request.user, repo, description)
+    except GithubException as e:
+        if e.status == 403:
+            raise BadRequest(_("GitHub denied repository creation for this linked account. Create the repository on GitHub first, then paste its URL in GitHub Repo."))
+        raise
 
     project.github_repo = repo.full_name
     project.github_branch = "main"

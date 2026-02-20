@@ -99,7 +99,7 @@
                 <label class="control-label" for="project-template">{% trans "Template" %}</label>
                 <div class="controls">
                     <select id="project-template">
-                        <option value="-1" selected>{% trans "Default app" %}</option>
+                        <option value="-1"{% if not c_templates %} selected{% endif %}>{% trans "Default app" %}</option>
                         <option value="0">{% trans "Empty project" %}</option>
                         {% if sdk_templates %}
                         <optgroup label="{% trans "Standard Templates" %}">
@@ -112,6 +112,13 @@
                         <optgroup label="{% trans "SDK demos" %}">
                             {% for template in demo_templates %}
                                 <option value="{{ template.id }}" {%if template.id == default_template_id%}selected="selected"{%endif%}>{{ template.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                        {% if c_templates %}
+                        <optgroup label="watchface-tutorial">
+                            {% for template in c_templates %}
+                                <option value="{{ template.id }}"{% if template.id == 'watchface-tutorial/part1' %} selected{% endif %}>{{ template.label }}</option>
                             {% endfor %}
                         </optgroup>
                         {% endif %}

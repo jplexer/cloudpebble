@@ -118,6 +118,38 @@ class TestProjectImportApi(TestCase):
         self.assertFalse(Project.objects.filter(name='github-sdk-invalid').exists())
 
     @mock.patch('ide.api.project.do_import_archive')
+    @mock.patch('ide.api.project.build_c_template_archive')
+    @mock.patch('ide.api.project.list_c_templates')
+    def test_create_native_project_from_dynamic_template(self, list_templates, build_c_template_archive, import_archive):
+        list_templates.return_value = [{'id': 'watchface-tutorial/part1'}]
+        build_c_template_archive.return_value = b'zip-data'
+        response = self.client.post('/ide/project/create', {
+            'name': 'native-from-template',
+            'type': 'native',
+            'template': 'watchface-tutorial/part1',
+            'sdk': '4.9.127',
+        })
+        payload = json.loads(response.content)
+        self.assertTrue(payload['success'])
+        project = Project.objects.get(id=payload['id'])
+        build_c_template_archive.assert_called_once_with('watchface-tutorial/part1')
+        import_archive.assert_called_once_with(project.id, b'zip-data', delete_project=True)
+
+    @mock.patch('ide.api.project.list_c_templates')
+    def test_create_native_project_rejects_unknown_dynamic_template(self, list_templates):
+        list_templates.return_value = []
+        response = self.client.post('/ide/project/create', {
+            'name': 'native-bad-template',
+            'type': 'native',
+            'template': 'watchface-tutorial/missing',
+            'sdk': '4.9.127',
+        })
+        payload = json.loads(response.content)
+        self.assertFalse(payload['success'])
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Project.objects.filter(name='native-bad-template').exists())
+
+    @mock.patch('ide.api.project.do_import_archive')
     @mock.patch('ide.api.project.build_template_archive')
     @mock.patch('ide.api.project.list_alloy_templates')
     def test_create_alloy_project_from_dynamic_template(self, list_templates, build_template_archive, import_archive):

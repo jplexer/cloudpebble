@@ -85,6 +85,9 @@ $(function() {
             $('#project-template').show();
             $('#template-holder').show();
             $('.sdk-version').show();
+            if ($('#project-template option[value="watchface-tutorial/part1"]').length) {
+                $('#project-template').val('watchface-tutorial/part1');
+            }
         }
     });
 

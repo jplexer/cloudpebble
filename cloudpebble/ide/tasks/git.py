@@ -6,7 +6,6 @@ import os
 import logging
 
 from celery import shared_task
-from django.conf import settings
 from django.utils.timezone import now
 from github.GithubObject import NotSet
 from github import Github, GithubException, InputGitTreeElement
@@ -70,7 +69,7 @@ def file_exists(url):
 
 @git_auth_check
 def github_push(user, commit_message, repo_name, project):
-    g = Github(user.github.token, client_id=settings.GITHUB_CLIENT_ID, client_secret=settings.GITHUB_CLIENT_SECRET)
+    g = Github(user.github.token)
     repo = g.get_repo(repo_name)
     try:
         branch = repo.get_branch(project.github_branch or repo.master_branch)

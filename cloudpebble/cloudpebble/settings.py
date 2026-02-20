@@ -136,6 +136,7 @@ SIMPLYJS_ROOT = os.getcwd() + '/ext/simplyjs/'
 PEBBLEJS_ROOT = os.getcwd() + '/ext/pebblejs/'
 C_PRELOAD_ROOT = os.getcwd() + '/c-preload/'
 MODDABLE_EXAMPLES_ROOT = '/opt/pebble-examples'
+C_WATCHFACE_TUTORIAL_ROOT = '/opt/c-watchface-tutorial'
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash.

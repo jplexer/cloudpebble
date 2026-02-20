@@ -19,6 +19,7 @@ from ide.tasks.build import run_compile
 from ide.tasks.gist import import_gist
 from ide.tasks.git import do_import_github
 from ide.utils.alloy_templates import list_alloy_templates, build_template_archive
+from ide.utils.c_templates import list_c_templates, build_c_template_archive
 from utils.td_helper import send_td_event
 from utils.jsonview import json_view, BadRequest
 
@@ -580,9 +581,14 @@ def build_download(request, project_id, build_id, filename):
 @json_view
 def create_project(request):
     name = request.POST['name']
-    template_id = request.POST.get('template', None)
-    if template_id is not None:
-        template_id = int(template_id)
+    template_value = request.POST.get('template', None)
+    template_id = None
+    c_template = None
+    if template_value is not None:
+        try:
+            template_id = int(template_value)
+        except (TypeError, ValueError):
+            c_template = template_value
     project_type = request.POST.get('type', 'native')
     template_name = None
     sdk_version = str(request.POST.get('sdk', '4.9.127'))
@@ -607,6 +613,18 @@ def create_project(request):
             if project_type == 'native' and template_id == -1:
                 f = SourceFile.objects.create(project=project, file_name="main.c")
                 f.save_text(NATIVE_DEFAULT_TEMPLATE)
+            elif project_type == 'native' and c_template:
+                available_c_templates = {x['id'] for x in list_c_templates()}
+                if c_template in available_c_templates:
+                    try:
+                        bundle = build_c_template_archive(c_template)
+                        do_import_archive(project.id, bundle, delete_project=True)
+                        imported_from_archive = True
+                        template_name = c_template
+                    except Exception as e:
+                        raise BadRequest(_('Failed to import C SDK template: %s') % str(e))
+                else:
+                    raise BadRequest(_('Unknown C SDK template id: %s') % c_template)
             elif template_id is not None and template_id != 0:
                 template = TemplateProject.objects.get(pk=template_id)
                 template_name = template.name
@@ -671,7 +689,8 @@ def create_project(request):
     except IntegrityError as e:
         raise BadRequest(str(e))
     else:
-        send_td_event('cloudpebble_create_project', {'data': {'template': {'id': template_id, 'name': template_name}}},
+        tracked_template_id = c_template if c_template else template_id
+        send_td_event('cloudpebble_create_project', {'data': {'template': {'id': tracked_template_id, 'name': template_name}}},
                       request=request, project=project)
 
         return {"id": project.id}

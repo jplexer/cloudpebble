@@ -93,6 +93,13 @@ RUN mkdir -p /opt && \
   else \
     rm -rf /opt/watchface-tutorial && \
     git clone --depth 1 --branch main "https://github.com/coredevices/alloy-watchface-tutorial.git" "/opt/watchface-tutorial"; \
+  fi && \
+  if [ -d "/opt/c-watchface-tutorial/.git" ]; then \
+    git -C "/opt/c-watchface-tutorial" fetch --depth 1 origin main && \
+    git -C "/opt/c-watchface-tutorial" reset --hard "origin/main"; \
+  else \
+    rm -rf /opt/c-watchface-tutorial && \
+    git clone --depth 1 --branch main "https://github.com/coredevices/c-watchface-tutorial.git" "/opt/c-watchface-tutorial"; \
   fi
 
 ADD requirements.txt /tmp/requirements.txt

@@ -63,14 +63,14 @@
                 <ul class="nav-list" id="sidebar">
                     <li class="nav-header project-name">{{ project.name }}</li>
                     <li class="nav-header" id="sidebar-pane-settings"><a href="#">{% trans 'Settings' %}</a></li>
-                    <li class="nav-header sdk3-only" id="sidebar-pane-timeline"><a href="#">Timeline (Preview)</a></li>
-                    <li class="nav-header" id="sidebar-pane-compile"><a href="#">{% trans 'Compilation' %}</a></li>
+                    <li class="nav-header" id="sidebar-pane-compile"><a href="#">Build &amp; Run</a></li>
                     {% if project.project_type == 'package' or project.project_type == 'native' or project.project_type == 'alloy' %}
                         <li class="nav-header sdk3-only" id="sidebar-pane-dependencies"><a href="#">{% trans 'Dependencies' %}</a>
                             <span class="spinner spinner-dark hide"></span>
                         </li>
                     {% endif %}
                     <li id="sidebar-pane-github" class="nav-header"><a href="#">GitHub</a></li>
+                    <li class="nav-header sdk3-only" id="sidebar-pane-timeline"><a href="#">Timeline (Preview)</a></li>
                     <li class="nav-section">
                         <ul class="nav-list" id="sidebar-sources">
 

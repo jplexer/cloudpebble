@@ -5,6 +5,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_safe
 from ide.models.project import Project, TemplateProject
 from ide.utils.alloy_templates import list_alloy_templates
+from ide.utils.c_templates import list_c_templates
 from utils.td_helper import send_td_event
 
 __author__ = 'katharine'
@@ -34,6 +35,7 @@ def index(request, github_account=None, github_project=None):
             'sdk_templates': TemplateProject.objects.filter(template_kind=TemplateProject.KIND_TEMPLATE),
             'demo_templates': TemplateProject.objects.filter(template_kind=TemplateProject.KIND_SDK_DEMO),
             'alloy_templates': list_alloy_templates(),
+            'c_templates': list_c_templates(),
             'default_template_id': settings.DEFAULT_TEMPLATE,
             'user': user,
         })

@@ -7,7 +7,6 @@ import logging
 from github import Github, BadCredentialsException, UnknownObjectException
 from github.NamedUser import NamedUser
 from django.utils.translation import gettext as _
-from django.conf import settings
 
 from ide.models.user import UserGithub
 
@@ -53,7 +52,7 @@ def git_verify_tokens(user):
 
 
 def get_github(user):
-    return Github(user.github.token, client_id=settings.GITHUB_CLIENT_ID, client_secret=settings.GITHUB_CLIENT_SECRET)
+    return Github(user.github.token)
 
 
 def check_repo_access(user, repo):
