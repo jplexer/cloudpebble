@@ -9,7 +9,10 @@ CloudPebble.GitHub = (function() {
     };
 
     var show_github_pane = function() {
-        if(!USER_SETTINGS.github) return;
+        if(!USER_SETTINGS.github) {
+            window.location.href = '/ide/settings';
+            return;
+        }
         CloudPebble.Sidebar.SuspendActive();
         if(CloudPebble.Sidebar.Restore("github")) {
             return;
@@ -213,8 +216,7 @@ CloudPebble.GitHub = (function() {
         Init: function() {
             github_template = $('#github-template').remove().removeClass('hide');
             if(!USER_SETTINGS.github) {
-                $('#sidebar-pane-github').addClass('disabled');
-                CloudPebble.Sidebar.SetPopover('github', '', gettext('GitHub integration can be enabled in your user settings by linking a GitHub account.'))
+                CloudPebble.Sidebar.SetPopover('github', '', gettext('GitHub integration can be enabled in your user settings by linking a GitHub account.'));
             }
         },
         Show: function() {

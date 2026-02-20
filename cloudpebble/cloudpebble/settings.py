@@ -418,7 +418,7 @@ AWS_S3_ENDPOINT_URL = _environ.get('AWS_S3_ENDPOINT_URL', None) or None
 
 TYPOGRAPHY_CSS = _environ.get('TYPOGRAPHY_CSS', None)
 
-LIBPEBBLE_PROXY = _environ.get('LIBPEBBLE_PROXY', None)
+LIBPEBBLE_PROXY = _environ.get('LIBPEBBLE_PROXY', 'wss://cloudpebble-proxy.repebble.com/tool')
 
 CLOUDPEBBLE_PROXY = _environ.get('CLOUDPEBBLE_PROXY', 'wss://cloudpebble-proxy.repebble.com/tool')
 

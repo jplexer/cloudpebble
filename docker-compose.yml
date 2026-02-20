@@ -39,7 +39,7 @@ services:
       - YCMD_PUBLIC_URL=${YCMD_PUBLIC_URL:-}
       - PUBLIC_URL=${PUBLIC_URL}/
       - EXPECT_SSL=${EXPECT_SSL:-no}
-      - LIBPEBBLE_PROXY=wss://cloudpebble-ws.herokuapp.com/tool
+      - LIBPEBBLE_PROXY=wss://cloudpebble-proxy.repebble.com/tool
       - CLOUDPEBBLE_PROXY=${CLOUDPEBBLE_PROXY:-wss://cloudpebble-proxy.repebble.com/tool}
       - PEBBLE_AUTH_URL=https://auth.rebble.io
       - FIREBASE_PROJECT_ID=coreapp-ce061
