@@ -2,9 +2,9 @@
 
 A web-based IDE for developing Pebble smartwatch applications. Write C or JavaScript, compile, and test on an in-browser emulator — all from the browser.
 
-**Live demo:** https://cloudpebble-og-dev.exe.xyz (test with `testuser`/`testpass123`)
+Try it out at https://cloudpebble.repebble.com
 
-## Quick Start
+## Self-hosting instructions
 
 ```bash
 git clone https://github.com/coredevices/cloudpebble.git
@@ -28,6 +28,113 @@ Optional services (emulator, code completion):
 
 ```bash
 docker compose --profile emulator --profile codecomplete up -d
+```
+
+## Host it easily on exe.dev
+
+Use this to bootstrap a brand-new `exe.dev` VM and get CloudPebble running.
+
+### 1. Prepare local repo + env
+
+```bash
+git clone https://github.com/coredevices/cloudpebble.git
+cd cloudpebble
+cp .env.example .env 2>/dev/null || true
+```
+
+Set `.env` values for your dev host and secrets (at minimum):
+
+```bash
+PUBLIC_URL=https://YOURDOMAIN.exe.xyz
+EXPECT_SSL=yes
+SECRET_KEY=<generate-a-random-secret>
+QEMU_SERVER=root@<your-vm-or-qemu-host>
+QEMU_SSH_KEY=~/.ssh/id_pub
+```
+
+### 2. Create/prepare the exe.dev VM
+
+From your machine:
+
+```bash
+ssh -i ~/.ssh/id_pub YOURDOMAIN.exe.xyz
+```
+
+On the VM:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo $VERSION_CODENAME) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo usermod -aG docker $USER
+mkdir -p ~/cloudpebble
+exit
+```
+
+Reconnect after the `docker` group change:
+
+```bash
+ssh -i ~/.ssh/id_pub YOURDOMAIN.exe.xyz
+docker --version
+docker compose version
+exit
+```
+
+### 3. Sync code to VM
+
+From your machine:
+
+```bash
+rsync -avz --delete --exclude='.git' --exclude='.env' \
+  -e "ssh -i ~/.ssh/id_exe" \
+  /path/to/cloudpebble/ YOURDOMAIN.exe.xyz:~/cloudpebble/
+```
+
+### 4. Build and start services
+
+```bash
+ssh -i ~/.ssh/id_exe YOURDOMAIN.exe.xyz "
+  cd ~/cloudpebble &&
+  docker compose build &&
+  docker compose up -d
+"
+```
+
+Optional profiles:
+
+```bash
+ssh -i ~/.ssh/id_exe YOURDOMAIN.exe.xyz "
+  cd ~/cloudpebble &&
+  docker compose --profile emulator --profile codecomplete up -d
+"
+```
+
+### 5. Verify
+
+```bash
+curl -I https://YOURDOMAIN.exe.xyz/
+ssh -i ~/.ssh/id_exe YOURDOMAIN.exe.xyz "cd ~/cloudpebble && docker compose ps"
+ssh -i ~/.ssh/id_exe YOURDOMAIN.exe.xyz "cd ~/cloudpebble && docker compose logs web --tail 100"
+```
+
+### 6. Create a test user (optional)
+
+```bash
+ssh -i ~/.ssh/id_exe YOURDOMAIN.exe.xyz "
+  cd ~/cloudpebble &&
+  docker compose exec -T web /usr/local/bin/python manage.py shell -c \"
+from django.contrib.auth.models import User;
+User.objects.create_user('testuser', 'test@example.com', 'testpass123')
+\"
+"
 ```
 
 ## Architecture
@@ -85,7 +192,7 @@ The web and celery containers share the same Docker image. `RUN_WEB=yes` starts 
 3. Browser connects via WebSocket for VNC display
 4. Emulators auto-kill after 5 minutes without a ping
 
-Platforms: aplite (Pebble), basalt (Time), chalk (Time Round), diorite (Pebble 2), emery (Time 2)
+Platforms: aplite (Pebble), basalt (Time), chalk (Time Round), diorite (Pebble 2), emery (Time 2), gabbro (Round 2)
 
 ### Code Completion
 
@@ -121,7 +228,7 @@ User.objects.create_user('username', 'email@example.com', 'password')
 - `ide/models/` — Database models: Project, SourceFile, ResourceFile, BuildResult, UserSettings
 - `ide/tasks/` — Celery tasks: `build.py` (compile), `git.py` (GitHub sync), `archive.py` (import/export)
 - `ide/static/ide/js/` — Frontend JavaScript (jQuery + Backbone + CodeMirror SPA)
-- `auth/` — Authentication (local accounts + Pebble/Rebble OAuth2)
+- `auth/` — Authentication (local accounts + Pebble OAuth2)
 
 ### Environment Variables
 
@@ -136,45 +243,6 @@ Key variables set in `docker-compose.yml`:
 | `YCM_URLS` | Code completion proxy URL |
 | `GITHUB_ID` / `GITHUB_SECRET` | GitHub OAuth (optional) |
 
-## Production Deployment
-
-### Simple (Single Server)
-
-The nginx container listens on port 8080. Point your reverse proxy (Caddy, Traefik, etc.) at it for TLS termination.
-
-### Scaled (Hybrid Architecture)
-
-For production at scale, split stateless services onto a PaaS and run the emulator on dedicated hardware:
-
-```
-Browser ──→ Railway
-              ├── Web (Django) ──→ Supabase (Postgres + Auth)
-              │                ──→ Upstash (Redis)
-              │                ──→ Cloudflare R2 (object storage)
-              ├── Celery worker ──→ same backends
-              └── ycmd proxy
-
-Browser ──→ Hetzner (direct WebSocket for VNC)
-              └── QEMU controller (Docker + nginx + TLS)
-```
-
-QEMU runs on dedicated hardware because ARM emulation needs ~400MB RAM per instance and long-lived WebSocket connections — making it 3-10x cheaper on a dedicated server vs PaaS.
-
-| Service | Provider | Spec | ~Monthly Cost |
-|---------|----------|------|---------------|
-| Web (Django) | Railway | ~1 vCPU, 1GB | $30 |
-| Celery worker | Railway | ~2 vCPU, 2GB | $60 |
-| ycmd proxy | Railway | ~0.5 vCPU, 512MB | $15 |
-| QEMU controller | Hetzner AX42 | 8C/16T, 64GB DDR5 | $50 |
-| PostgreSQL + Auth | Supabase Pro | 8GB DB, 100K MAU | $25 |
-| Redis | Upstash | Pay-as-you-go | $3 |
-| Object storage | Cloudflare R2 | 500GB, zero egress | $10 |
-| **Total** | | | **~$200/mo** |
-
-**Capacity:** ~1,000 developers doing 20 builds/month + 5 hrs emulator/month. The Hetzner server handles 150+ concurrent emulators.
-
-Set `QEMU_URLS` to the Hetzner server's public HTTPS endpoint. The browser connects directly to Hetzner for VNC — no traffic proxied through Railway.
-
 ## Tech Stack
 
 - **Backend:** Python 3.11, Django 4.2 LTS, Celery 5.x, PostgreSQL 16, Redis
@@ -187,8 +255,7 @@ Set `QEMU_URLS` to the Hetzner server's public HTTPS endpoint. The browser conne
 
 | Limitation | Notes |
 |------------|-------|
-| No Pebble SSO | Pebble's auth servers are gone; use local accounts |
-| No phone installs | Requires SSO token; use emulator instead |
+| JSHint/linting | Project-level JS lint settings are currently not working end-to-end |
 | Code completion | WIP — container builds but not yet functional end-to-end |
 
 ## Credits

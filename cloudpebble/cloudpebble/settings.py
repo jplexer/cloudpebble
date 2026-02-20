@@ -73,16 +73,26 @@ TEMPLATE_CONTEXT_PROCESSORS = (
 # See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
 ALLOWED_HOSTS = ['*']
 
-# Django 4.2+ requires CSRF_TRUSTED_ORIGINS for cross-origin requests
+# Django 4.2+ requires CSRF_TRUSTED_ORIGINS for cross-origin requests.
+# Configure additional origins via CSRF_TRUSTED_ORIGINS (comma-separated).
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://localhost:8080',
-    'https://cloudpebble-dev.exe.xyz',
-    'https://cloudpebble-og-dev.exe.xyz',
 ]
 _public_url = os.environ.get('PUBLIC_URL', '').rstrip('/')
 if _public_url:
     CSRF_TRUSTED_ORIGINS.append(_public_url)
+
+_extra_csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if _extra_csrf_origins:
+    CSRF_TRUSTED_ORIGINS.extend(
+        origin.strip().rstrip('/')
+        for origin in _extra_csrf_origins.split(',')
+        if origin.strip()
+    )
+
+# Keep insertion order while removing duplicates
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
