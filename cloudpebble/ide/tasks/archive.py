@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import uuid
 import zipfile
+from collections import OrderedDict
 
 from celery import shared_task
 from django.conf import settings
@@ -218,9 +219,8 @@ def do_import_archive(project_id, archive, delete_project=False):
 
                     tag_map = {v: k for k, v in ResourceVariant.VARIANT_STRINGS.items() if v}
 
-                    desired_resources = {}
+                    desired_resources = OrderedDict()
                     resources_files = {}
-                    resource_variants = {}
                     file_exists_for_root = {}
 
                     # Go through the media map and look for resources
@@ -234,11 +234,29 @@ def do_import_archive(project_id, archive, delete_project=False):
                         tags, root_file_name = get_filename_variant(file_name, tag_map)
                         if (len(tags) != 0):
                             raise ValueError("Generic resource filenames cannot contain a tilde (~)")
-                        if file_name not in desired_resources:
-                            desired_resources[root_file_name] = []
+                        if root_file_name not in desired_resources:
+                            desired_resources[root_file_name] = {
+                                'resources': [],
+                                'kind': resource['type'],
+                                'is_menu_icon': resource.get('menuIcon', False),
+                            }
+                        else:
+                            # A single root resource maps to one ResourceFile row, so key properties must match.
+                            if desired_resources[root_file_name]['kind'] != resource['type']:
+                                raise ValueError("Inconsistent resource type for %s" % root_file_name)
+                            if desired_resources[root_file_name]['is_menu_icon'] != resource.get('menuIcon', False):
+                                raise ValueError("Inconsistent menuIcon for %s" % root_file_name)
 
-                        desired_resources[root_file_name].append(resource)
+                        desired_resources[root_file_name]['resources'].append(resource)
                         file_exists_for_root[root_file_name] = False
+
+                    # Create ResourceFile rows in manifest order so generated manifests preserve declared media order.
+                    for root_file_name, resource_info in desired_resources.items():
+                        resources_files[root_file_name] = ResourceFile.objects.create(
+                            project=project,
+                            file_name=os.path.basename(root_file_name),
+                            kind=resource_info['kind'],
+                            is_menu_icon=resource_info['is_menu_icon'])
 
                     # Go through the zip file process all resource and source files.
                     for filename, entry in filtered_contents:
@@ -256,25 +274,11 @@ def do_import_archive(project_id, archive, delete_project=False):
                             tags_string = ",".join(str(int(t)) for t in tags)
 
                             if root_file_name in desired_resources:
-                                medias = desired_resources[root_file_name]
-
-                                # Because 'kind' and 'is_menu_icons' are properties of ResourceFile in the database,
-                                # we just use the first one.
-                                resource = medias[0]
-                                # Make only one resource file per base resource.
-                                if root_file_name not in resources_files:
-                                    kind = resource['type']
-                                    is_menu_icon = resource.get('menuIcon', False)
-                                    resources_files[root_file_name] = ResourceFile.objects.create(
-                                        project=project,
-                                        file_name=os.path.basename(root_file_name),
-                                        kind=kind,
-                                        is_menu_icon=is_menu_icon)
-
-                                # But add a resource variant for every file
-                                actual_file_name = resource['file']
-                                resource_variants[actual_file_name] = ResourceVariant.objects.create(resource_file=resources_files[root_file_name], tags=tags_string)
-                                resource_variants[actual_file_name].save_file(extracted)
+                                variant = ResourceVariant.objects.create(
+                                    resource_file=resources_files[root_file_name],
+                                    tags=tags_string
+                                )
+                                variant.save_file(extracted)
                                 file_exists_for_root[root_file_name] = True
                         else:
                             try:
@@ -292,8 +296,8 @@ def do_import_archive(project_id, archive, delete_project=False):
                                     source.save_string(raw)
 
                     # Now add all the resource identifiers
-                    for root_file_name in desired_resources:
-                        for resource in desired_resources[root_file_name]:
+                    for root_file_name, resource_info in desired_resources.items():
+                        for resource in resource_info['resources']:
                             target_platforms = json.dumps(resource['targetPlatforms']) if 'targetPlatforms' in resource else None
                             ResourceIdentifier.objects.create(
                                 resource_file=resources_files[root_file_name],
