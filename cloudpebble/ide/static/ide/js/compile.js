@@ -267,6 +267,31 @@ CloudPebble.Compile = (function() {
         ga('send','event', 'build', 'run', {eventValue: ++m_build_count});
     };
 
+    var wait_for_build = function(build_id) {
+        return Ajax.Get('/ide/project/' + PROJECT_ID + '/build/' + build_id + '/info').then(function(data) {
+            var build = data.build;
+            if(build.state == 1) {
+                return Promise.delay(1000).then(function() {
+                    return wait_for_build(build_id);
+                });
+            }
+            return build;
+        });
+    };
+
+    var run_build_detailed = function() {
+        var temp_build = {started: (new Date()).toISOString(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
+        update_last_build(pane, temp_build);
+        pane.find('#run-build-table').prepend(build_history_row(temp_build));
+        return Ajax.Post('/ide/project/' + PROJECT_ID + '/build/run').then(function(result) {
+            return wait_for_build(result.build_id);
+        }).then(function(build) {
+            return update_build_history(pane).then(function() {
+                return build;
+            });
+        });
+    };
+
     var format_build_size = function(size, max_code, max_worker, max_resources) {
         var sfmt;
         if(!size.worker) {
@@ -557,7 +582,11 @@ CloudPebble.Compile = (function() {
         }
     }
 
-    var install_on_watch = function(kind) {
+    var install_on_watch = function(kind, build) {
+        var installBuild = build || mLastBuild;
+        if(!installBuild || !installBuild.download || !installBuild.sizes) {
+            return Promise.reject(new Error(gettext("No successful build is available to install.")));
+        }
         var modal = $('#phone-install-progress');
         return SharedPebble.getPebble(kind).then(function(pebble) {
             return new Promise(function(resolve, reject) {
@@ -613,13 +642,13 @@ CloudPebble.Compile = (function() {
                     }
                     if(/test/.test(version_string) || compare_version_strings(version_string, min_version) >= 0) {
                         var sizes = {
-                            aplite: mLastBuild.sizes.aplite,
-                            basalt: mLastBuild.sizes.basalt,
-                            chalk: mLastBuild.sizes.chalk,
-                            diorite: mLastBuild.sizes.diorite,
-                            emery: mLastBuild.sizes.emery,
-                            gabbro: mLastBuild.sizes.gabbro,
-                            flint: mLastBuild.sizes.flint
+                            aplite: installBuild.sizes.aplite,
+                            basalt: installBuild.sizes.basalt,
+                            chalk: installBuild.sizes.chalk,
+                            diorite: installBuild.sizes.diorite,
+                            emery: installBuild.sizes.emery,
+                            gabbro: installBuild.sizes.gabbro,
+                            flint: installBuild.sizes.flint
                         };
                         var size = sizes[platform];
                         var install_timer = setTimeout(function() {
@@ -633,7 +662,7 @@ CloudPebble.Compile = (function() {
                             //    virtual: SharedPebble.isVirtual()
                             //});
                         }, 30000);
-                        pebble.install_app(mLastBuild.download);
+                        pebble.install_app(installBuild.download);
                         var expectedBytes = (size.binary + size.worker + size.resources);
                         pebble.on('install:progress', function(bytes) {
                             clearTimeout(install_timer);
@@ -871,6 +900,9 @@ CloudPebble.Compile = (function() {
         RunBuild: function() {
             return run_build();
         },
+        RunBuildDetailed: function() {
+            return run_build_detailed();
+        },
         /**
          * Get the platform to install and run the the app on, given details of the project and last build.
          * @returns {number}
@@ -887,8 +919,10 @@ CloudPebble.Compile = (function() {
                 }
             }
         },
-        DoInstall: function() {
-            return install_on_watch(CloudPebble.Compile.GetPlatformForInstall());
+        DoInstall: function(options) {
+            var opts = options || {};
+            var kind = opts.kind || CloudPebble.Compile.GetPlatformForInstall();
+            return install_on_watch(kind, opts.build);
         }
     };
 })();

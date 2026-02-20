@@ -10,6 +10,7 @@ from ide.api.project import (
     last_build,
     build_history,
     build_log,
+    build_info,
     build_download,
     create_project,
     save_project_settings,
@@ -179,6 +180,11 @@ urlpatterns = [
         r"^project/(?P<project_id>\d+)/build/(?P<build_id>\d+)/log",
         build_log,
         name="get_build_log",
+    ),
+    re_path(
+        r"^project/(?P<project_id>\d+)/build/(?P<build_id>\d+)/info",
+        build_info,
+        name="get_build_info",
     ),
     re_path(
         r"^project/(?P<project_id>\d+)/build/(?P<build_id>\d+)/download/(?P<filename>[a-z._]+)",

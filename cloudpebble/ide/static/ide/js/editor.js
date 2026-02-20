@@ -17,27 +17,130 @@ CloudPebble.Editor = (function() {
         return !!_.findWhere(CloudPebble.Editor.GetAllFiles(), {target: target, name: name});
     };
 
+    var runStatus = null;
     var run = function() {
-        CloudPebble.Prompts.Progress.Show(gettext("Saving..."));
+        var runTarget = CloudPebble.Compile.GetPlatformForInstall();
+        var runOnEmulator = (runTarget & ConnectionType.Qemu) == ConnectionType.Qemu;
+
+        var showRunStatus = function() {
+            var modal = $('#generic-progress').modal('show');
+            modal.find('h3').text(gettext("Running project"));
+            modal.find('.progress').removeClass('progress-danger progress-success').addClass('progress-striped');
+            var body = modal.find('#generic-progress-text');
+            body.empty();
+            var summary = $('<p class="run-status-summary">').text(gettext("Saving changes..."));
+            body.append(summary);
+
+            var rows = $('<div class="run-status-rows">').appendTo(body);
+            var makeRow = function(labelText) {
+                var row = $('<div class="run-status-row" style="display:flex; justify-content:space-between; margin:6px 0;">');
+                row.append($('<span class="run-status-label">').text(labelText));
+                var badge = $('<span class="label label-info">').text(gettext("Queued"));
+                row.append(badge);
+                rows.append(row);
+                return badge;
+            };
+
+            var compileBadge = makeRow(gettext("Compilation"));
+            var emulatorBadge = makeRow(gettext("Emulator"));
+            var installBadge = makeRow(gettext("Install"));
+
+            var setLane = function(badge, state, text) {
+                badge.removeClass('label-info label-success label-important label-inverse');
+                if(state == 'success') {
+                    badge.addClass('label-success');
+                } else if(state == 'error') {
+                    badge.addClass('label-important');
+                } else if(state == 'waiting') {
+                    badge.addClass('label-inverse');
+                } else {
+                    badge.addClass('label-info');
+                }
+                badge.text(text);
+            };
+
+            return {
+                setSummary: function(text) {
+                    summary.text(text || '');
+                },
+                setCompile: function(state, text) {
+                    setLane(compileBadge, state, text);
+                },
+                setEmulator: function(state, text) {
+                    setLane(emulatorBadge, state, text);
+                },
+                setInstall: function(state, text) {
+                    setLane(installBadge, state, text);
+                },
+                success: function() {
+                    modal.find('.progress').addClass('progress-success').removeClass('progress-danger progress-striped');
+                },
+                fail: function() {
+                    modal.find('.progress').addClass('progress-danger').removeClass('progress-success progress-striped');
+                },
+                hide: function() {
+                    modal.modal('hide');
+                }
+            };
+        };
+
+        runStatus = showRunStatus();
+        runStatus.setCompile('info', gettext("Queued"));
+        runStatus.setEmulator(runOnEmulator ? 'info' : 'success', runOnEmulator ? gettext("Queued") : gettext("Not needed"));
+        runStatus.setInstall('info', gettext("Queued"));
+
+        var buildPromise = null;
+        var emuPromise = null;
         CloudPebble.Editor.SaveAll().then(function() {
-            CloudPebble.Prompts.Progress.Show(gettext("Compiling..."));
-            return CloudPebble.Compile.RunBuild()
-        }).then(function (success) {
-            CloudPebble.Prompts.Progress.Hide();
-            if(success) {
-                if (CloudPebble.ProjectProperties.is_runnable) {
-                    return CloudPebble.Compile.DoInstall();
+            runStatus.setSummary(gettext("Compiling and preparing target..."));
+            runStatus.setCompile('waiting', gettext("Running"));
+            buildPromise = CloudPebble.Compile.RunBuildDetailed().then(function(build) {
+                if(build.state == 3) {
+                    runStatus.setCompile('success', gettext("Succeeded"));
+                    return build;
                 }
-                else {
-                    CloudPebble.Prompts.Progress.Update(gettext('Package built successfully.'));
-                    CloudPebble.Prompts.Progress.Success();
-                }
+                runStatus.setCompile('error', gettext("Failed"));
+                throw new Error(gettext("Compilation failed."));
+            });
+
+            if(runOnEmulator) {
+                runStatus.setEmulator('waiting', gettext("Booting"));
+                emuPromise = SharedPebble.getPebble(runTarget, {showProgress: false}).then(function(pebble) {
+                    runStatus.setEmulator('success', gettext("Connected"));
+                    return pebble;
+                }).catch(function(error) {
+                    runStatus.setEmulator('error', gettext("Failed"));
+                    throw error;
+                });
             } else {
-                CloudPebble.Compile.Show();
+                emuPromise = Promise.resolve(null);
+            }
+
+            return Promise.all([buildPromise, emuPromise]);
+        }).then(function(results) {
+            var build = results[0];
+            runStatus.setSummary(gettext("Installing app..."));
+            runStatus.setInstall('waiting', gettext("Running"));
+            runStatus.hide();
+            runStatus = null;
+            if (CloudPebble.ProjectProperties.is_runnable) {
+                return CloudPebble.Compile.DoInstall({kind: runTarget, build: build}).then(function() {
+                    return null;
+                });
+            } else {
+                CloudPebble.Prompts.Progress.Show(gettext("Build complete"));
+                CloudPebble.Prompts.Progress.Update(gettext('Package built successfully.'));
+                CloudPebble.Prompts.Progress.Success();
             }
         }).catch(function(error) {
-            CloudPebble.Prompts.Progress.Update(error.toString());
-            CloudPebble.Prompts.Progress.Fail();
+            if(runStatus) {
+                runStatus.setInstall('error', gettext("Blocked"));
+                runStatus.setSummary(error.toString());
+                runStatus.fail();
+            }
+            if (/Compilation failed/.test(error.toString())) {
+                CloudPebble.Compile.Show();
+            }
         });
     };
 

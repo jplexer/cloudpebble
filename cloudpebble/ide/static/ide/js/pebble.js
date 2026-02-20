@@ -64,14 +64,19 @@ var SharedPebble = new (function() {
         return ((kind & ConnectionType.QemuEmery) == ConnectionType.QemuEmery);
     }
 
-    function _getEmulator(kind) {
+    function _getEmulator(kind, options) {
+        var showProgress = !options || options.showProgress !== false;
         var statementInterval = null;
         var randomStatements = LOADING_STATEMENTS.slice(0);
 
-        CloudPebble.Prompts.Progress.Show(gettext("Booting emulator…"), gettext("Booting emulator..."));
+        if(showProgress) {
+            CloudPebble.Prompts.Progress.Show(gettext("Booting emulator…"), gettext("Booting emulator..."));
+        }
         statementInterval = setInterval(function() {
             if(statementInterval === null) return;
-            CloudPebble.Prompts.Progress.Update(pickElement(randomStatements));
+            if(showProgress) {
+                CloudPebble.Prompts.Progress.Update(pickElement(randomStatements));
+            }
         }, 2500);
         var emulator_container = $('#emulator-container');
         mEmulator = new QEmu(ConnectionPlatformNames[kind], emulator_container.find('canvas'), {
@@ -102,8 +107,10 @@ var SharedPebble = new (function() {
         mEmulator.on('disconnected', handleEmulatorDisconnected);
         return mEmulator.connect().catch(function(err) {
             hide_emulator();
-            CloudPebble.Prompts.Progress.Fail();
-            CloudPebble.Prompts.Progress.Update(err.message);
+            if(showProgress) {
+                CloudPebble.Prompts.Progress.Fail();
+                CloudPebble.Prompts.Progress.Update(err.message);
+            }
             throw err;
         }).then(function() {
             return mEmulator;
@@ -112,18 +119,18 @@ var SharedPebble = new (function() {
         });
     }
 
-    this.getEmulator = function(kind) {
+    this.getEmulator = function(kind, options) {
         if(mEmulator != null) {
             if((kind & mConnectionType) == kind) {
                 return Promise.resolve(mEmulator);
             } else {
                 return mEmulator.disconnect(true).then(function() {
-                    return _getEmulator(kind);
+                    return _getEmulator(kind, options);
                 });
             }
         }
         else {
-            return _getEmulator(kind);
+            return _getEmulator(kind, options);
         }
 
     };
@@ -135,7 +142,8 @@ var SharedPebble = new (function() {
         }
     }
 
-    this.getPebble = function(kind) {
+    this.getPebble = function(kind, options) {
+        var showProgress = !options || options.showProgress !== false;
         if(mPebble && mPebble.is_connected()) {
             if(kind === undefined || mConnectionType == kind || (kind == ConnectionType.Qemu && self.isVirtual())) {
                 return Promise.resolve(mPebble);
@@ -145,7 +153,7 @@ var SharedPebble = new (function() {
         var watchPromise;
 
         if(kind & ConnectionType.Qemu) {
-            watchPromise = self.getEmulator(kind);
+            watchPromise = self.getEmulator(kind, options);
         } else {
             watchPromise = Promise.resolve();
         }
@@ -153,21 +161,27 @@ var SharedPebble = new (function() {
             return new Promise(function(resolve, reject) {
                 var did_connect = false;
                 mConnectionType = kind;
-                CloudPebble.Prompts.Progress.Show(gettext("Connecting..."), gettext("Establishing connection..."), function() {
-                    if(!did_connect && mPebble) {
-                        mPebble.off();
-                        mPebble.close();
-                        reject(new Error(gettext("Connection interrupted.")));
-                    }
-                });
+                if(showProgress) {
+                    CloudPebble.Prompts.Progress.Show(gettext("Connecting..."), gettext("Establishing connection..."), function() {
+                        if(!did_connect && mPebble) {
+                            mPebble.off();
+                            mPebble.close();
+                            reject(new Error(gettext("Connection interrupted.")));
+                        }
+                    });
+                }
 				console.log(getWebsocketURL());
                 mPebble = new Pebble(getWebsocketURL(), getToken());
                 mPebble.on('all', handlePebbleEvent);
                 mPebble.on('proxy:authenticating', function() {
-                    CloudPebble.Prompts.Progress.Update(gettext("Authenticating..."));
+                    if(showProgress) {
+                        CloudPebble.Prompts.Progress.Update(gettext("Authenticating..."));
+                    }
                 });
                 mPebble.on('proxy:waiting', function() {
-                    CloudPebble.Prompts.Progress.Update(gettext("Waiting for phone. Make sure the developer connection is enabled."));
+                    if(showProgress) {
+                        CloudPebble.Prompts.Progress.Update(gettext("Waiting for phone. Make sure the developer connection is enabled."));
+                    }
                 });
                 var connectionError = function() {
                     reject(new Error(gettext("Connection interrupted")));
@@ -190,15 +204,19 @@ var SharedPebble = new (function() {
                     did_connect = true;
                     mPebble.off(null, connectionError);
                     mPebble.off('proxy:authenticating proxy:waiting');
-                    CloudPebble.Prompts.Progress.Hide();
+                    if(showProgress) {
+                        CloudPebble.Prompts.Progress.Hide();
+                    }
                     resolve(mPebble);
                 });
             }).catch(function(error) {
                 mPebble.off();
                 mPebble = null;
                 mEmulator = null;
-                CloudPebble.Prompts.Progress.Fail();
-                CloudPebble.Prompts.Progress.Update(interpolate(gettext("Emulator boot failed: %s"), [error.message]));
+                if(showProgress) {
+                    CloudPebble.Prompts.Progress.Fail();
+                    CloudPebble.Prompts.Progress.Update(interpolate(gettext("Emulator boot failed: %s"), [error.message]));
+                }
                 $('#sidebar').removeClass('with-emulator with-emulator-gabbro');
                 throw error;
             });

@@ -538,6 +538,15 @@ def build_log(request, project_id, build_id):
     return {"log": log}
 
 
+@require_safe
+@login_required
+@json_view
+def build_info(request, project_id, build_id):
+    project = get_object_or_404(Project, pk=project_id, owner=request.user)
+    build = get_object_or_404(BuildResult, project=project, pk=build_id)
+    return {"build": _serialize_build(build, project)}
+
+
 DOWNLOAD_CONTENT_TYPES = {
     'watchface.pbw': 'application/octet-stream',
     'package.tar.gz': 'application/gzip',
