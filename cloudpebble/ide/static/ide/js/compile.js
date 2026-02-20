@@ -123,9 +123,15 @@ CloudPebble.Compile = (function() {
         if (!pane) return;
         if (connType === 'devconn') {
             pane.find('.phone-help-github').hide();
+            pane.find('.phone-help-github-signin').hide();
             pane.find('.phone-help-devconn').show();
         } else {
             pane.find('.phone-help-github').show();
+            if (USER_SETTINGS.github_dev_connection && USER_SETTINGS.github_dev_connection.token) {
+                pane.find('.phone-help-github-signin').hide();
+            } else {
+                pane.find('.phone-help-github-signin').show();
+            }
             pane.find('.phone-help-devconn').hide();
         }
     };

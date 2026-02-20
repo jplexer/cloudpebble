@@ -8,7 +8,7 @@ from github import Github, BadCredentialsException, UnknownObjectException
 from github.NamedUser import NamedUser
 from django.utils.translation import gettext as _
 
-from ide.models.user import UserGithub
+from ide.models.user import UserGithubRepoSync
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ def git_auth_check(f):
         except BadCredentialsException:
             # Bad credentials; remove the user's auth data.
             try:
-                logger.warning("Bad credentials; revoking user's github tokens.")
-                github = user.github
+                logger.warning("Bad credentials; revoking user's GitHub Repo Sync tokens.")
+                github = user.github_repo_sync
                 github.delete()
             except:
                 pass
@@ -34,8 +34,8 @@ def git_auth_check(f):
 
 def git_verify_tokens(user):
     try:
-        token = user.github.token
-    except UserGithub.DoesNotExist:
+        token = user.github_repo_sync.token
+    except UserGithubRepoSync.DoesNotExist:
         return False
     if token is None:
         return False
@@ -46,13 +46,13 @@ def git_verify_tokens(user):
         urlopen(r).read()
     except HTTPError as e:
         if e.getcode() == 401:
-            user.github.delete()
+            user.github_repo_sync.delete()
         return False
     return True
 
 
 def get_github(user):
-    return Github(user.github.token)
+    return Github(user.github_repo_sync.token)
 
 
 def check_repo_access(user, repo):
@@ -62,7 +62,7 @@ def check_repo_access(user, repo):
     except UnknownObjectException:
         raise
 
-    return repo.has_in_collaborators(NamedUser(None, {'login': user.github.username}, False))
+    return repo.has_in_collaborators(NamedUser(None, {'login': user.github_repo_sync.username}, False))
 
 
 def url_to_repo(url):

@@ -387,8 +387,13 @@ EXPORT_DIRECTORY = os.getcwd() + '/user_data/export/'
 
 EXPORT_ROOT = _environ.get('EXPORT_ROOT', 'http://localhost:8001/export/')
 
-GITHUB_CLIENT_ID = _environ.get('GITHUB_ID', '')
-GITHUB_CLIENT_SECRET = _environ.get('GITHUB_SECRET', '')
+# Cloud Dev Connection / legacy GitHub auth app
+GITHUB_DEV_CLIENT_ID = _environ.get('GITHUB_DEV_CLIENT_ID', _environ.get('GITHUB_ID', ''))
+GITHUB_DEV_CLIENT_SECRET = _environ.get('GITHUB_DEV_CLIENT_SECRET', _environ.get('GITHUB_SECRET', ''))
+
+# GitHub Repo Sync auth app
+GITHUB_SYNC_CLIENT_ID = _environ.get('GITHUB_SYNC_CLIENT_ID', '')
+GITHUB_SYNC_CLIENT_SECRET = _environ.get('GITHUB_SYNC_CLIENT_SECRET', '')
 
 GITHUB_HOOK_TEMPLATE = _environ.get('GITHUB_HOOK', PUBLIC_URL.rstrip('/') + '/ide/project/%(project)d/github/push_hook?key=%(key)s')
 

@@ -9,7 +9,7 @@ CloudPebble.GitHub = (function() {
     };
 
     var show_github_pane = function() {
-        if(!USER_SETTINGS.github) {
+        if(!USER_SETTINGS.github_repo_sync) {
             window.location.href = '/ide/settings';
             return;
         }
@@ -215,8 +215,8 @@ CloudPebble.GitHub = (function() {
     return {
         Init: function() {
             github_template = $('#github-template').remove().removeClass('hide');
-            if(!USER_SETTINGS.github) {
-                CloudPebble.Sidebar.SetPopover('github', '', gettext('GitHub integration can be enabled in your user settings by linking a GitHub account.'));
+            if(!USER_SETTINGS.github_repo_sync) {
+                CloudPebble.Sidebar.SetPopover('github', '', gettext('GitHub Repo Sync can be enabled in your user settings by linking a GitHub account.'));
             }
         },
         Show: function() {

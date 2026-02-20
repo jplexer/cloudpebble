@@ -70,7 +70,11 @@ class S3File(IdeModel):
         if not settings.AWS_ENABLED:
             return self._get_contents_local()
         else:
-            return s3.read_file(self.bucket_name, self.s3_path)
+            data = s3.read_file(self.bucket_name, self.s3_path)
+            try:
+                return data.decode('utf-8')
+            except UnicodeDecodeError:
+                return data
 
     def save_string(self, string):
         if not settings.AWS_ENABLED:

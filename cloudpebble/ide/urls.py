@@ -60,9 +60,12 @@ from ide.views.project import (
 )
 from ide.views.settings import (
     settings_page,
-    start_github_auth,
-    remove_github_auth,
-    complete_github_auth,
+    start_github_dev_auth,
+    remove_github_dev_auth,
+    complete_github_dev_auth,
+    start_github_repo_sync_auth,
+    remove_github_repo_sync_auth,
+    complete_github_repo_sync_auth,
 )
 
 app_name = "ide"
@@ -235,11 +238,26 @@ urlpatterns = [
     re_path(r"^task/(?P<task_id>[0-9a-f-]{32,36})", check_task, name="check_task"),
     re_path(r"^shortlink$", get_shortlink, name="get_shortlink"),
     re_path(r"^settings$", settings_page, name="settings"),
-    re_path(r"^settings/github/start$", start_github_auth, name="start_github_auth"),
+    re_path(r"^settings/github/start$", start_github_dev_auth, name="start_github_dev_auth"),
     re_path(
-        r"^settings/github/callback$", complete_github_auth, name="complete_github_auth"
+        r"^settings/github/callback$", complete_github_dev_auth, name="complete_github_dev_auth"
     ),
-    re_path(r"^settings/github/unlink$", remove_github_auth, name="remove_github_auth"),
+    re_path(r"^settings/github/unlink$", remove_github_dev_auth, name="remove_github_dev_auth"),
+    re_path(
+        r"^settings/github-sync/start$",
+        start_github_repo_sync_auth,
+        name="start_github_repo_sync_auth",
+    ),
+    re_path(
+        r"^settings/github-sync/callback$",
+        complete_github_repo_sync_auth,
+        name="complete_github_repo_sync_auth",
+    ),
+    re_path(
+        r"^settings/github-sync/unlink$",
+        remove_github_repo_sync_auth,
+        name="remove_github_repo_sync_auth",
+    ),
     re_path(r"^import/zip", import_zip, name="import_zip"),
     re_path(r"^import/github", import_github, name="import_github"),
     re_path(r"^import/gist", do_import_gist, name="import_gist"),

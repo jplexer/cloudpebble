@@ -1,6 +1,6 @@
 from social_core.backends.oauth import BaseOAuth2
 from django.conf import settings
-from ide.models.user import UserGithub
+from ide.models.user import UserGithub, UserGithubRepoSync
 from ide.models.project import Project
 import ide.utils.mailinglist as mailinglist
 
@@ -44,6 +44,15 @@ def merge_user(strategy, uid, user=None, *args, **kwargs):
                         github.user = user
                         github.save()
             except UserGithub.DoesNotExist:
+                pass
+            # If one user has Repo Sync GitHub settings and the other doesn't, use them.
+            try:
+                github_repo_sync = UserGithubRepoSync.objects.get(user=social.user)
+                if github_repo_sync:
+                    if UserGithubRepoSync.objects.filter(user=user).count() == 0:
+                        github_repo_sync.user = user
+                        github_repo_sync.save()
+            except UserGithubRepoSync.DoesNotExist:
                 pass
             # Delete our old social user.
             social.user.delete()

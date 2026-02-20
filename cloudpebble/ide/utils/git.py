@@ -5,7 +5,9 @@ __author__ = 'katharine'
 
 
 def git_sha(content):
-    return hashlib.sha1('blob %d\x00%s' % (len(content), content)).hexdigest()
+    if isinstance(content, str):
+        content = content.encode('utf-8')
+    return hashlib.sha1(('blob %d\x00' % len(content)).encode('utf-8') + content).hexdigest()
 
 
 def git_blob(repo, sha):

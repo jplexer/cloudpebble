@@ -39,9 +39,13 @@ def view_project(request, project_id):
     except:
         token = ''
     try:
-        github_token = request.user.github.token
+        github_dev = request.user.github
     except:
-        github_token = ''
+        github_dev = None
+    try:
+        github_repo_sync = request.user.github_repo_sync
+    except:
+        github_repo_sync = None
     return render(request, 'ide/project.html', {
         'project': project,
         'app_keys': app_keys,
@@ -49,7 +53,8 @@ def view_project(request, project_id):
         'libpebble_proxy': json.dumps(settings.LIBPEBBLE_PROXY),
         'cloudpebble_proxy': json.dumps(settings.CLOUDPEBBLE_PROXY),
         'token': token,
-        'github_token': github_token,
+        'github_dev': github_dev,
+        'github_repo_sync': github_repo_sync,
         'phone_shorturl': settings.PHONE_SHORTURL,
         'supported_platforms': project.supported_platforms,
         'regexes': regexes,

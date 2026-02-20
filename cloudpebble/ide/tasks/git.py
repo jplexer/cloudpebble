@@ -69,7 +69,7 @@ def file_exists(url):
 
 @git_auth_check
 def github_push(user, commit_message, repo_name, project):
-    g = Github(user.github.token)
+    g = Github(user.github_repo_sync.token)
     repo = g.get_repo(repo_name)
     try:
         branch = repo.get_branch(project.github_branch or repo.master_branch)
@@ -102,19 +102,30 @@ def github_push(user, commit_message, repo_name, project):
         repo_path = os.path.join(root, source.project_path)
 
         update_expected_paths(repo_path)
+        our_content = source.get_contents()
         if repo_path not in next_tree:
             has_changed = True
-            next_tree[repo_path] = InputGitTreeElement(path=repo_path, mode='100644', type='blob',
-                                                       content=source.get_contents())
+            if isinstance(our_content, bytes):
+                blob = repo.create_git_blob(base64.b64encode(our_content).decode('ascii'), 'base64')
+                logger.debug("Created blob %s for binary source %s", blob.sha, repo_path)
+                next_tree[repo_path] = InputGitTreeElement(path=repo_path, mode='100644', type='blob', sha=blob.sha)
+            else:
+                next_tree[repo_path] = InputGitTreeElement(path=repo_path, mode='100644', type='blob',
+                                                           content=our_content)
             logger.debug("New file: %s", repo_path)
         else:
             sha = next_tree[repo_path]._InputGitTreeElement__sha
-            our_content = source.get_contents()
             expected_sha = git_sha(our_content)
             if expected_sha != sha:
                 logger.debug("Updated file: %s", repo_path)
-                next_tree[repo_path]._InputGitTreeElement__sha = NotSet
-                next_tree[repo_path]._InputGitTreeElement__content = our_content
+                if isinstance(our_content, bytes):
+                    blob = repo.create_git_blob(base64.b64encode(our_content).decode('ascii'), 'base64')
+                    logger.debug("Created blob %s for binary source %s", blob.sha, repo_path)
+                    next_tree[repo_path]._InputGitTreeElement__content = NotSet
+                    next_tree[repo_path]._InputGitTreeElement__sha = blob.sha
+                else:
+                    next_tree[repo_path]._InputGitTreeElement__sha = NotSet
+                    next_tree[repo_path]._InputGitTreeElement__content = our_content
                 has_changed = True
 
     # Now try handling resource files.
@@ -129,13 +140,13 @@ def github_push(user, commit_message, repo_name, project):
                 if git_sha(content) != next_tree[repo_path]._InputGitTreeElement__sha:
                     logger.debug("Changed resource: %s", repo_path)
                     has_changed = True
-                    blob = repo.create_git_blob(base64.b64encode(content), 'base64')
+                    blob = repo.create_git_blob(base64.b64encode(content).decode('ascii'), 'base64')
                     logger.debug("Created blob %s", blob.sha)
                     next_tree[repo_path]._InputGitTreeElement__sha = blob.sha
             else:
                 logger.debug("New resource: %s", repo_path)
                 has_changed = True
-                blob = repo.create_git_blob(base64.b64encode(variant.get_contents()), 'base64')
+                blob = repo.create_git_blob(base64.b64encode(variant.get_contents()).decode('ascii'), 'base64')
                 logger.debug("Created blob %s", blob.sha)
                 next_tree[repo_path] = InputGitTreeElement(path=repo_path, mode='100644', type='blob', sha=blob.sha)
 

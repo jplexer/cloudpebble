@@ -74,3 +74,14 @@ class UserGithub(IdeModel):
 
     class Meta(IdeModel.Meta):
         db_table = 'cloudpebble_user_github'
+
+
+class UserGithubRepoSync(IdeModel):
+    user = models.OneToOneField(User, primary_key=True, related_name='github_repo_sync', on_delete=models.CASCADE)
+    token = models.CharField(max_length=50, null=True, blank=True)
+    nonce = models.CharField(max_length=36, null=True, blank=True)
+    username = models.CharField(max_length=50, null=True, blank=True)
+    avatar = models.CharField(max_length=255, null=True, blank=True)
+
+    class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_user_github_repo_sync'

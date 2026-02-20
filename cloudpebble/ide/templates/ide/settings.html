@@ -42,35 +42,66 @@
         </div>
     </div>
     <div class="github-settings">
-        <h2 class="section-heading">{% trans 'GitHub Integration' %}</h2>
-        <div class="well">
-            <form action="{% url 'ide:remove_github_auth' %}" method="post" id="unlink-form">{%csrf_token%}</form>
-            {% if github and github.token %}
-            <img src="{{ github.avatar }}" class="github-avatar">
-            <h2 class="github-username">{{ github.username }}</h2>
+        <h2 class="section-heading">{% trans 'GitHub Integrations' %}</h2>
+        <div class="well github-card">
+            <h3 class="github-card-title">{% trans 'GitHub Repo Sync' %}</h3>
+            {% if github_repo_sync and github_repo_sync.token %}
+            <div class="github-identity">
+                <img src="{{ github_repo_sync.avatar }}" class="github-avatar">
+                <h2 class="github-username">{{ github_repo_sync.username }}</h2>
+            </div>
+            {% endif %}
             <div class="github-options">
-                <p>
-                    <form method="post" action="{% url 'ide:start_github_auth' %}">
-                        <input type="submit" class="btn btn-primary" value="{% trans 'Re-authenticate' %}">
-                        {% csrf_token %}
-                    </form>
-                </p>
-                <p>
-                    <form method="post" action="{% url 'ide:remove_github_auth' %}">
-                        <input type="submit" class="btn btn-primary" value="{% trans 'Unlink account' %}">
-                        {% csrf_token %}
-                    </form>
-                </p>
+                <div class="github-actions-list">
+                {% if github_repo_sync and github_repo_sync.token %}
+                <form method="post" action="{% url 'ide:start_github_repo_sync_auth' %}" class="github-action">
+                    <input type="submit" class="btn btn-primary" value="{% trans 'Re-authenticate' %}">
+                    {% csrf_token %}
+                </form>
+                <form method="post" action="{% url 'ide:remove_github_repo_sync_auth' %}" class="github-action">
+                    <input type="submit" class="btn btn-primary" value="{% trans 'Unlink account' %}">
+                    {% csrf_token %}
+                </form>
                 {% else %}
-                <p>
-                    <form method="post" action="{% url 'ide:start_github_auth' %}">
-                        <input type="submit" class="btn btn-primary" value="{% trans 'Link your GitHub account' %}">
-                        {% csrf_token %}
-                    </form>
-                </p>
+                <a href="https://github.com/apps/cloudpebble-repo-sync/installations/new" target="_blank" rel="noopener" class="btn">
+                    {% trans 'Install GitHub app' %}
+                </a>
+                <form method="post" action="{% url 'ide:start_github_repo_sync_auth' %}" class="github-action">
+                    <input type="submit" class="btn btn-primary" value="{% trans 'Link your GitHub account' %}">
+                    {% csrf_token %}
+                </form>
                 {% endif %}
-                <hr>
-                <p>{% trans 'Connecting your GitHub account enables you to connect your projects to GitHub repositories.' %}</p>
+                </div>
+                <p class="github-help">{% trans 'Used for linking projects to GitHub repositories and push/pull sync.' %}</p>
+            </div>
+        </div>
+        <div class="well github-card">
+            <h3 class="github-card-title">{% trans 'Cloud Dev Connection' %}</h3>
+            {% if github_dev and github_dev.token %}
+            <div class="github-identity">
+                <img src="{{ github_dev.avatar }}" class="github-avatar">
+                <h2 class="github-username">{{ github_dev.username }}</h2>
+            </div>
+            {% endif %}
+            <div class="github-options">
+                <div class="github-actions-list">
+                {% if github_dev and github_dev.token %}
+                <form method="post" action="{% url 'ide:start_github_dev_auth' %}" class="github-action">
+                    <input type="submit" class="btn btn-primary" value="{% trans 'Re-authenticate' %}">
+                    {% csrf_token %}
+                </form>
+                <form method="post" action="{% url 'ide:remove_github_dev_auth' %}" class="github-action">
+                    <input type="submit" class="btn btn-primary" value="{% trans 'Unlink account' %}">
+                    {% csrf_token %}
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'ide:start_github_dev_auth' %}" class="github-action">
+                    <input type="submit" class="btn btn-primary" value="{% trans 'Link your GitHub account' %}">
+                    {% csrf_token %}
+                </form>
+                {% endif %}
+                </div>
+                <p class="github-help">{% trans 'Used for Cloud Dev Connection in Build & Run phone mode.' %}</p>
             </div>
         </div>
     </div>
@@ -91,11 +122,6 @@
             } else {
                 $(this).siblings('.help-block').addClass('hide');
             }
-        });
-
-        $('#unlink-btn').click(function(e) {
-            e.preventDefault();
-            $('#unlink-form').submit();
         });
 
         var save = function() {

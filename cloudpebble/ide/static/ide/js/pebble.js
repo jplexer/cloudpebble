@@ -280,7 +280,7 @@ var SharedPebble = new (function() {
         if (localStorage['phoneConnectionType'] === 'devconn') {
             return USER_SETTINGS.token;
         }
-        return USER_SETTINGS.github ? USER_SETTINGS.github.token : '';
+        return USER_SETTINGS.github_dev_connection ? USER_SETTINGS.github_dev_connection.token : '';
     }
 
     function pickElement(elements) {
