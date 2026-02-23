@@ -97,9 +97,7 @@ def kill(emu):
     return jsonify(status='ok')
 
 
-def proxy_ws(emu, attr, subprotocols=None):
-    if subprotocols is None:
-        subprotocols = []
+def proxy_ws(emu, attr, subprotocols=[]):
     server_ws = request.environ.get('wsgi.websocket', None)
     if server_ws is None:
         logging.warning("proxy_ws: no wsgi.websocket in environ for %s", attr)
@@ -114,25 +112,15 @@ def proxy_ws(emu, attr, subprotocols=None):
     target_url = "ws://localhost:%d/" % getattr(emulator, attr)
     logging.info("proxy_ws: connecting to %s (attr=%s)", target_url, attr)
     try:
-        client_ws = websocket.create_connection(target_url, subprotocols=subprotocols, timeout=5)
-        client_ws.settimeout(1)
+        client_ws = websocket.create_connection(target_url, subprotocols=subprotocols)
     except:
         logging.exception("proxy_ws: connection to %s failed.", target_url)
         return 'failed', 500
     logging.info("proxy_ws: connected to %s, starting relay", target_url)
-
-    def _to_bytes(data):
-        if isinstance(data, bytearray):
-            return bytes(data)
-        if isinstance(data, bytes):
-            return data
-        return None
-
     alive = [True]
-
     def do_recv(direction, receive, send):
-        count = 0
         try:
+            count = 0
             while alive[0]:
                 data = receive()
                 if data is None:
@@ -142,43 +130,18 @@ def proxy_ws(emu, attr, subprotocols=None):
                 count += 1
                 send(data)
             logging.info("proxy_ws: %s loop ended after %d messages", direction, count)
-        except websocket.WebSocketTimeoutException:
-            # Timeout is expected due to short recv timeout; keep relaying until one side closes.
-            pass
         except (websocket.WebSocketException, geventwebsocket.WebSocketError, TypeError) as e:
             logging.info("proxy_ws: %s ended with %s: %s after %d messages", direction, type(e).__name__, e, count)
             alive[0] = False
-        except Exception:
+        except Exception as e:
             logging.exception("proxy_ws: %s unexpected error after %d messages", direction, count)
             alive[0] = False
-        finally:
-            logging.info("proxy_ws: %s loop ended after %d messages", direction, count)
+            raise
 
-    def send_target(data):
-        payload = _to_bytes(data)
-        if payload is not None:
-            client_ws.send_binary(payload)
-        else:
-            client_ws.send(data)
-
-    def send_browser(data):
-        payload = _to_bytes(data)
-        if payload is not None:
-            server_ws.send(payload, binary=True)
-        else:
-            server_ws.send(data)
-
-    g_browser_to_target = gevent.spawn(do_recv, "browser->target", lambda: server_ws.receive(), send_target)
-    g_target_to_browser = gevent.spawn(do_recv, "target->browser", lambda: client_ws.recv(), send_browser)
-    gevent.joinall([g_browser_to_target, g_target_to_browser], timeout=None)
-    alive[0] = False
-    for g in (g_browser_to_target, g_target_to_browser):
-        if not g.dead:
-            g.kill(block=False)
-    try:
-        client_ws.close()
-    except Exception:
-        pass
+    group = gevent.pool.Group()
+    group.spawn(do_recv, "browser->target", lambda: server_ws.receive(), lambda x: client_ws.send_binary(x))
+    group.spawn(do_recv, "target->browser", lambda: bytearray(client_ws.recv()), lambda x: server_ws.send(x))
+    group.join()
     logging.info("proxy_ws: relay ended for %s", target_url)
     return ''
 
@@ -208,14 +171,12 @@ def _kill_idle_emulators():
         while True:
             try:
                 logging.info("running idle killer for %d emulators", len(emulators))
-                for key, emulator in list(emulators.items()):
+                for key, emulator in emulators.items():
                     logging.debug("checking %s", key)
                     if now() - emulator.last_ping > 300:
                         logging.info("killing idle emulator %s", key)
-                        try:
-                            emulator.kill()
-                        finally:
-                            emulators.pop(key, None)
+                        emulator.kill()
+                        del emulators[key]
                     else:
                         logging.debug("okay; last ping: %s", emulator.last_ping)
             except Exception:
