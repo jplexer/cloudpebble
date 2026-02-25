@@ -24,6 +24,13 @@ __author__ = 'katharine'
 logger = logging.getLogger(__name__)
 
 
+def exception_reason(error):
+    reason = str(error)
+    if reason:
+        return reason
+    return error.__class__.__name__
+
+
 @shared_task(acks_late=True)
 def do_import_github(project_id, github_user, github_project, github_branch, delete_project=False):
     try:
@@ -47,7 +54,7 @@ def do_import_github(project_id, github_user, github_project, github_branch, del
                 pass
         send_td_event('cloudpebble_github_import_failed', data={
             'data': {
-                'reason': e.message,
+                'reason': exception_reason(e),
                 'github_user': github_user,
                 'github_project': github_project,
                 'github_branch': github_branch

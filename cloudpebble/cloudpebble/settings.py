@@ -4,6 +4,7 @@
 import sys
 import os
 import socket
+from urllib.parse import urlsplit, urlunsplit
 import dj_database_url
 
 _environ = os.environ
@@ -353,11 +354,19 @@ if TESTING:
 
 REDIS_URL = _environ.get('REDIS_URL', None) or _environ.get('REDISCLOUD_URL', 'redis://redis:6379')
 
+
+def _redis_db_url(redis_url, db_index):
+    parsed_url = urlsplit(redis_url)
+    if parsed_url.scheme != 'redis':
+        return redis_url.rstrip('/') + '/' + str(db_index)
+    return urlunsplit(parsed_url._replace(path='/' + str(db_index)))
+
+
 # Celery 5.x configuration
 if REDIS_URL.startswith('rediss://'):
     CELERY_BROKER_URL = REDIS_URL
 else:
-    CELERY_BROKER_URL = REDIS_URL + '/1'
+    CELERY_BROKER_URL = _redis_db_url(REDIS_URL, 1)
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_ACCEPT_CONTENT = ['pickle']
 CELERY_TASK_SERIALIZER = 'pickle'

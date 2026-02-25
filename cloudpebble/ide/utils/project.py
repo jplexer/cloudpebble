@@ -99,4 +99,10 @@ def find_project_root_and_manifest(project_items):
     if invalid_package_path:
         raise InvalidProjectArchiveException(_("The file %s does not contain a valid JSON object." % invalid_package_path))
     else:
-        raise InvalidProjectArchiveException(_("No valid project root found."))
+        raise InvalidProjectArchiveException(
+            _(
+                "No valid Pebble project root found. Expected either a package.json "
+                "with a top-level 'pebble' object, or an appinfo.json with source "
+                "files under src/."
+            )
+        )
