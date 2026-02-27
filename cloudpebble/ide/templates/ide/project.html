@@ -590,7 +590,7 @@ var REGEXES = _.mapObject(JSON.parse('{{regexes_json|escapejs}}'), function(v) {
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script type="text/javascript">
-if (!firebase.apps.length) {
+if (window.firebase && firebase.apps && !firebase.apps.length) {
     firebase.initializeApp({
         apiKey: "AIzaSyBZ9Cdvwwv9At2lPmc8TxyyEqSXGXejGvc",
         authDomain: "coreapp-ce061.firebaseapp.com",
