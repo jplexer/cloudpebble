@@ -64,6 +64,7 @@ from ide.views.settings import (
     start_github_dev_auth,
     remove_github_dev_auth,
     complete_github_dev_auth,
+    start_github_repo_sync_install,
     start_github_repo_sync_auth,
     remove_github_repo_sync_auth,
     complete_github_repo_sync_auth,
@@ -249,6 +250,11 @@ urlpatterns = [
         r"^settings/github/callback$", complete_github_dev_auth, name="complete_github_dev_auth"
     ),
     re_path(r"^settings/github/unlink$", remove_github_dev_auth, name="remove_github_dev_auth"),
+    re_path(
+        r"^settings/github-sync/install$",
+        start_github_repo_sync_install,
+        name="start_github_repo_sync_install",
+    ),
     re_path(
         r"^settings/github-sync/start$",
         start_github_repo_sync_auth,
