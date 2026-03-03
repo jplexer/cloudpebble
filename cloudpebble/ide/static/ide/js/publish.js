@@ -25,7 +25,43 @@ CloudPebble.Publish = (function() {
     }
 
     function showError(message) {
-        $('#publish-error').text(message).removeClass('hide').addClass('alert-error');
+        var errorEl = $('#publish-error').empty().removeClass('hide').addClass('alert-error');
+        var lowerMsg = (message || '').toLowerCase();
+
+        // Version conflict: show message with deep link to settings
+        if (lowerMsg.indexOf('version') !== -1 && lowerMsg.indexOf('already exists') !== -1) {
+            var version = CloudPebble.ProjectInfo.app_version_label || '';
+            errorEl.append($('<span>').text('Version ' + version + ' already exists. '));
+            var settingsLink = $('<a href="#">').text('Update version number.');
+            settingsLink.click(function(e) {
+                e.preventDefault();
+                CloudPebble.Settings.Show();
+            });
+            errorEl.append(settingsLink);
+        }
+        // UUID conflict: show regenerate button
+        else if (lowerMsg.indexOf('uuid') !== -1) {
+            errorEl.append($('<span>').text(message));
+            var regenBtn = $('<button type="button" class="btn btn-warning" style="margin-top: 8px; display: block;">')
+                .text('Regenerate UUID');
+            regenBtn.click(function() {
+                regenBtn.attr('disabled', 'disabled').text('Regenerating...');
+                Ajax.Post('/ide/project/' + PROJECT_ID + '/regenerate_uuid')
+                .then(function(data) {
+                    CloudPebble.ProjectInfo.app_uuid = data.uuid;
+                    hideError();
+                    preflight();
+                }).catch(function(err) {
+                    regenBtn.removeAttr('disabled').text('Regenerate UUID');
+                    showError('Failed to regenerate UUID: ' + err.message);
+                });
+            });
+            errorEl.append(regenBtn);
+        }
+        // Generic error
+        else {
+            errorEl.append($('<span>').text(message));
+        }
     }
 
     function hideError() {
@@ -38,22 +74,26 @@ CloudPebble.Publish = (function() {
 
     function preflight() {
         hideError();
+        $('#publish-title').hide();
         $('#publish-status-area').show();
         $('#publish-preflight-progress').show();
         $('#publish-form-area').hide();
         $('#publish-success').addClass('hide');
         setStatus('Checking app store status...');
 
-        Ajax.Post('/ide/project/' + PROJECT_ID + '/publish/preflight')
+        SharedPebble.refreshFirebaseToken().then(function() {
+        return Ajax.Post('/ide/project/' + PROJECT_ID + '/publish/preflight');
+        })
             .then(function(data) {
                 mPreflightData = data;
                 $('#publish-preflight-progress').hide();
+                $('#publish-status-area').hide();
 
                 if (data.is_new_app) {
-                    setStatus('This app has not been published yet. Fill in the details below to publish it.');
+                    $('#publish-title').text('Publish on Pebble Appstore').show();
                     showNewAppFields(data);
                 } else {
-                    setStatus('This app is already in the store (ID: ' + data.app_id + '). You can publish an update.');
+                    $('#publish-title').text('Publish Update').show();
                     hideNewAppFields();
                 }
 
@@ -91,7 +131,7 @@ CloudPebble.Publish = (function() {
         }
 
         $('#publish-screenshot-hint').text(
-            'At least one screenshot is required for new apps. Click "Capture Screenshots" to automatically capture from the emulator.'
+            'Screenshots are optional. Capture from the emulator or upload your own for each platform.'
         );
     }
 
@@ -124,11 +164,10 @@ CloudPebble.Publish = (function() {
             btn.text('Publish to App Store');
             var name = $('#publish-name').val().trim();
             var description = $('#publish-description').val().trim();
-            var hasScreenshots = _.some(mScreenshots, function(list) { return list.length > 0; });
             var needsCategory = !mPreflightData.is_watchface;
             var category = $('#publish-category').val();
 
-            if (name && description && hasScreenshots && (!needsCategory || category)) {
+            if (name && description && (!needsCategory || category)) {
                 btn.removeAttr('disabled');
             } else {
                 btn.attr('disabled', 'disabled');
@@ -144,9 +183,61 @@ CloudPebble.Publish = (function() {
         var platforms = getPlatforms();
 
         _.each(platforms, function(platform) {
-            var section = $('<div class="publish-screenshot-platform">')
+            var section = $('<div class="publish-screenshot-platform" style="margin-bottom: 8px;">')
                 .attr('data-platform', platform);
-            section.append($('<strong>').text(platform));
+
+            var header = $('<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">');
+            header.append($('<strong>').text(platform));
+
+            var captureBtn = $('<button type="button" class="btn publish-platform-capture-btn">')
+                .text('Auto-generate')
+                .css({'flex-shrink': '0', 'width': 'auto'})
+                .attr('data-platform', platform)
+                .click(function(e) {
+                    e.preventDefault();
+                    captureSinglePlatform(platform);
+                });
+            header.append(captureBtn);
+
+            var uploadBtn = $('<button type="button" class="btn publish-platform-upload-btn">')
+                .text('Upload')
+                .css({'flex-shrink': '0', 'width': 'auto'})
+                .attr('data-platform', platform);
+            var fileInput = $('<input type="file" accept="image/png,image/gif" multiple style="display:none;">')
+                .attr('data-platform', platform);
+            uploadBtn.click(function(e) {
+                e.preventDefault();
+                fileInput.click();
+            });
+            fileInput.change(function() {
+                var files = this.files;
+                if (!files || !files.length) return;
+                if (!mScreenshots[platform]) mScreenshots[platform] = [];
+                console.log('[Publish] Upload: ' + files.length + ' file(s) selected for ' + platform);
+                for (var i = 0; i < files.length; i++) {
+                    (function(file) {
+                        var reader = new FileReader();
+                        reader.onload = function(ev) {
+                            var isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+                            console.log('[Publish] Upload stored:', file.name, 'type:', file.type, 'size:', file.size, 'as:', isGif ? 'gif' : 'png', 'for:', platform);
+                            mScreenshots[platform].push({
+                                type: isGif ? 'gif' : 'png',
+                                blob: file,
+                                url: ev.target.result
+                            });
+                            updateScreenshotThumbs();
+                            updatePublishButton();
+                        };
+                        reader.readAsDataURL(file);
+                    })(files[i]);
+                }
+                // Reset so same file can be re-selected
+                fileInput.val('');
+            });
+            header.append(uploadBtn);
+            header.append(fileInput);
+
+            section.append(header);
             section.append($('<div class="publish-screenshot-thumbs">'));
             container.append(section);
         });
@@ -184,6 +275,7 @@ CloudPebble.Publish = (function() {
 
         var platforms = getPlatforms();
         var captureBtn = $('#publish-capture-btn').attr('disabled', 'disabled');
+        $('.publish-platform-capture-btn').attr('disabled', 'disabled');
         var statusEl = $('#publish-capture-status');
         mScreenshots = {};
 
@@ -204,6 +296,29 @@ CloudPebble.Publish = (function() {
         }).finally(function() {
             mCapturing = false;
             captureBtn.removeAttr('disabled');
+            $('.publish-platform-capture-btn').removeAttr('disabled');
+        });
+    }
+
+    function captureSinglePlatform(platform) {
+        if (mCapturing) return;
+        mCapturing = true;
+
+        var captureBtn = $('.publish-platform-capture-btn[data-platform="' + platform + '"]').attr('disabled', 'disabled');
+        $('#publish-capture-btn').attr('disabled', 'disabled');
+        var statusEl = $('#publish-capture-status');
+
+        captureForPlatform(platform, statusEl).then(function() {
+            statusEl.text('Done with ' + platform + '.');
+            updateScreenshotThumbs();
+            updatePublishButton();
+        }).catch(function(error) {
+            statusEl.text('Error: ' + error.message);
+            showError('Screenshot capture failed for ' + platform + ': ' + error.message);
+        }).finally(function() {
+            mCapturing = false;
+            captureBtn.removeAttr('disabled');
+            $('#publish-capture-btn').removeAttr('disabled');
         });
     }
 
@@ -288,13 +403,14 @@ CloudPebble.Publish = (function() {
                 });
                 pebble.request_screenshot();
             }).then(function(imgElement) {
-                var dataUrl = imgElement.src || $(imgElement).attr('src');
-                return dataURLtoBlob(dataUrl).then(function(blob) {
+                // Resize screenshot to exact platform dimensions if needed
+                var dims = PLATFORM_DIMENSIONS[platform];
+                return resizeScreenshot(imgElement, dims).then(function(result) {
                     if (!mScreenshots[platform]) mScreenshots[platform] = [];
                     mScreenshots[platform].push({
                         type: 'png',
-                        blob: blob,
-                        url: dataUrl
+                        blob: result.blob,
+                        url: result.url
                     });
                 });
             }).then(function() {
@@ -306,7 +422,10 @@ CloudPebble.Publish = (function() {
                 }
 
                 statusEl.text('Recording GIF on ' + platform + ' (5s)...');
-                return recordGif(canvas, 5000, 10).then(function(gifBlob) {
+                var dims = PLATFORM_DIMENSIONS[platform];
+                var targetW = dims ? dims.width : null;
+                var targetH = dims ? dims.height : null;
+                return recordGif(canvas, 5000, 10, targetW, targetH).then(function(gifBlob) {
                     var gifUrl = URL.createObjectURL(gifBlob);
                     if (!mScreenshots[platform]) mScreenshots[platform] = [];
                     mScreenshots[platform].push({
@@ -326,22 +445,59 @@ CloudPebble.Publish = (function() {
         });
     }
 
-    function recordGif(canvas, durationMs, fps) {
+    function resizeScreenshot(imgElement, dims) {
+        return new Promise(function(resolve) {
+            var src = imgElement.src || $(imgElement).attr('src');
+            var img = new Image();
+            img.onload = function() {
+                if (dims && (img.width !== dims.width || img.height !== dims.height)) {
+                    console.log('[Publish] Resizing screenshot from', img.width + 'x' + img.height, 'to', dims.width + 'x' + dims.height);
+                    var c = document.createElement('canvas');
+                    c.width = dims.width;
+                    c.height = dims.height;
+                    c.getContext('2d').drawImage(img, 0, 0, dims.width, dims.height);
+                    c.toBlob(function(blob) {
+                        resolve({blob: blob, url: c.toDataURL('image/png')});
+                    }, 'image/png');
+                } else {
+                    dataURLtoBlob(src).then(function(blob) {
+                        resolve({blob: blob, url: src});
+                    });
+                }
+            };
+            img.src = src;
+        });
+    }
+
+    // Platform screen dimensions required by the appstore
+    var PLATFORM_DIMENSIONS = {
+        aplite:  {width: 144, height: 168},
+        basalt:  {width: 144, height: 168},
+        chalk:   {width: 180, height: 180},
+        diorite: {width: 144, height: 168},
+        emery:   {width: 200, height: 228},
+        flint:   {width: 144, height: 168},
+        gabbro:  {width: 260, height: 260}
+    };
+
+    function recordGif(canvas, durationMs, fps, targetWidth, targetHeight) {
         var workerUrl = (typeof GIF_WORKER_URL !== 'undefined') ? GIF_WORKER_URL : '/static/ide/external/gif.worker.js';
+        var outW = targetWidth || canvas.width;
+        var outH = targetHeight || canvas.height;
         var gif = new GIF({
             workers: 2,
             quality: 10,
-            width: canvas.width,
-            height: canvas.height,
+            width: outW,
+            height: outH,
             workerScript: workerUrl
         });
         var interval = 1000 / fps;
 
         var timer = setInterval(function() {
             var frame = document.createElement('canvas');
-            frame.width = canvas.width;
-            frame.height = canvas.height;
-            frame.getContext('2d').drawImage(canvas, 0, 0);
+            frame.width = outW;
+            frame.height = outH;
+            frame.getContext('2d').drawImage(canvas, 0, 0, outW, outH);
             gif.addFrame(frame, {delay: interval, copy: true});
         }, interval);
 
@@ -379,6 +535,9 @@ CloudPebble.Publish = (function() {
         hideError();
         $('#publish-success').addClass('hide');
 
+        // Refresh Firebase token before submitting to ensure session token is fresh
+        SharedPebble.refreshFirebaseToken().then(function() {
+
         var formData = new FormData();
         formData.append('is_new_app', mPreflightData.is_new_app ? 'true' : 'false');
         formData.append('app_id', mPreflightData.app_id || '');
@@ -407,14 +566,13 @@ CloudPebble.Publish = (function() {
         _.each(mScreenshots, function(items, platform) {
             _.each(items, function(item) {
                 var ext = item.type === 'gif' ? '.gif' : '.png';
-                formData.append(
-                    'screenshot_' + platform + '_' + screenshotIndex,
-                    item.blob,
-                    'screenshot_' + platform + '_' + screenshotIndex + ext
-                );
+                var fieldName = 'screenshot_' + platform + '_' + screenshotIndex;
+                console.log('[Publish] Attaching screenshot:', fieldName, 'type:', item.type, 'blob size:', item.blob.size);
+                formData.append(fieldName, item.blob, fieldName + ext);
                 screenshotIndex++;
             });
         });
+        console.log('[Publish] Total screenshots:', screenshotIndex, 'platforms:', Object.keys(mScreenshots));
 
         $.ajax({
             url: '/ide/project/' + PROJECT_ID + '/publish/submit',
@@ -426,14 +584,28 @@ CloudPebble.Publish = (function() {
         }).then(function(data) {
             if (data.success) {
                 statusEl.text('');
+                // Hide form and status area, show only success
+                $('#publish-form-area').hide();
+                $('#publish-status-area').hide();
+                hideError();
                 $('#publish-success').removeClass('hide');
-                if (data.app_url) {
-                    $('#publish-app-link').attr('href', data.app_url).text('View on App Store');
-                } else if (data.app_id) {
-                    var storeUrl = 'https://apps.repebble.com/en_US/application/' + data.app_id;
-                    $('#publish-app-link').attr('href', storeUrl).text('View on App Store');
+                if (data.app_id) {
+                    var storeUrl = 'https://apps.repebble.com/' + data.app_id;
+                    var dashboardUrl = 'https://appstore-api.repebble.com/dashboard';
+                    $('#publish-app-link').attr('href', storeUrl);
+                    $('#publish-dashboard-link').attr('href', dashboardUrl);
+                    $('#publish-success-store-link, #publish-success-dashboard-link').show();
                 } else {
-                    $('#publish-app-link').hide();
+                    $('#publish-success-store-link, #publish-success-dashboard-link').hide();
+                }
+                // Show screenshot warnings if any
+                if (data.screenshot_warnings && data.screenshot_warnings.length) {
+                    var warningHtml = '<p class="text-warning"><strong>Screenshot warnings:</strong></p><ul>';
+                    _.each(data.screenshot_warnings, function(w) {
+                        warningHtml += '<li>' + _.escape(w) + '</li>';
+                    });
+                    warningHtml += '</ul>';
+                    $('#publish-success .well:first').append(warningHtml);
                 }
             } else {
                 statusEl.text('');
@@ -447,6 +619,13 @@ CloudPebble.Publish = (function() {
             }
             statusEl.text('');
             showError(message);
+            btn.removeAttr('disabled');
+        });
+
+        }).catch(function(error) {
+            console.error('[Publish] Firebase token refresh failed:', error);
+            statusEl.text('');
+            showError('Authentication error. Please refresh the page and try again.');
             btn.removeAttr('disabled');
         });
     }
@@ -480,6 +659,8 @@ CloudPebble.Publish = (function() {
         Show: function() {
             CloudPebble.Sidebar.SuspendActive();
             if (CloudPebble.Sidebar.Restore('publish')) {
+                // Re-run preflight every time (clears success state, refreshes status)
+                preflight();
                 return;
             }
             initPane();

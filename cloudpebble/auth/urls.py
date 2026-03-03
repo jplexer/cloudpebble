@@ -11,6 +11,7 @@ urlpatterns = [
     re_path(r'^logout/?$', views.logout_view, name="logout"),
     re_path(r'^api/login$', views.login_action, name="login"),
     re_path(r'^api/firebase-login$', views.firebase_login, name="firebase_login"),
+    re_path(r'^api/firebase-refresh-token$', views.firebase_refresh_token, name="firebase_refresh_token"),
     # Password reset views
     path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'),
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),

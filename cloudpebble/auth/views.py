@@ -2,6 +2,7 @@ import logging
 
 from registration.backends.simple.views import RegistrationView
 from django.contrib.auth import logout, login, authenticate
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.views.generic import View
 from django.views.decorators.http import require_POST
@@ -78,6 +79,42 @@ def firebase_login(request):
 
     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
     # Store the verified Firebase token in session for Cloud Dev Connection v2.
+    request.session['firebase_id_token'] = token
+    request.session['firebase_id_token_exp'] = decoded.get('exp')
+    return json_response()
+
+
+@require_POST
+@login_required
+def firebase_refresh_token(request):
+    """Update the Firebase ID token in the existing session without re-logging in.
+
+    Unlike firebase_login, this does NOT call login() so the session and CSRF
+    token are preserved. Use this to refresh an expired Firebase token from JS
+    after the user is already authenticated.
+    """
+    token = request.POST.get('id_token', '')
+    if not token:
+        return json_failure("Missing id_token")
+
+    try:
+        decoded = id_token.verify_firebase_token(
+            token,
+            google_requests.Request(),
+            audience=settings.FIREBASE_PROJECT_ID,
+        )
+    except Exception as e:
+        logger.warning("Firebase token refresh verification failed: %s", e)
+        return json_failure("Invalid token")
+
+    email = decoded.get('email')
+    if not email:
+        return json_failure("No email in token")
+
+    # Verify the token belongs to the logged-in user
+    if email != request.user.email:
+        return json_failure("Token email does not match logged-in user")
+
     request.session['firebase_id_token'] = token
     request.session['firebase_id_token_exp'] = decoded.get('exp')
     return json_response()

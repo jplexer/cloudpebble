@@ -55,7 +55,7 @@ def publish_preflight(request, project_id):
         resp = http_requests.get(
             '%s/api/v1/developer/me' % base,
             headers=_api_headers(token),
-            timeout=15,
+            timeout=60,
         )
     except http_requests.RequestException as e:
         logger.error("Appstore API /developer/me failed: %s", e)
@@ -67,7 +67,8 @@ def publish_preflight(request, project_id):
             create_resp = http_requests.post(
                 '%s/api/v1/developer/create' % base,
                 headers=_api_headers(token),
-                timeout=15,
+                json={},
+                timeout=60,
             )
         except http_requests.RequestException as e:
             logger.error("Appstore API /developer/create failed: %s", e)
@@ -79,7 +80,7 @@ def publish_preflight(request, project_id):
             resp = http_requests.get(
                 '%s/api/v1/developer/me' % base,
                 headers=_api_headers(token),
-                timeout=15,
+                timeout=60,
             )
         except http_requests.RequestException as e:
             logger.error("Appstore API /developer/me retry failed: %s", e)
@@ -90,6 +91,7 @@ def publish_preflight(request, project_id):
 
     me_data = resp.json()
     app_lookup = me_data.get('app_lookup', {}).get('by_app_uuid', {})
+    logger.info("Developer /me app_lookup by_app_uuid: %s", app_lookup)
 
     # Look up this project's UUID in the store (case-insensitive)
     app_uuid = (project.app_uuid or '').lower()
@@ -98,7 +100,11 @@ def publish_preflight(request, project_id):
 
     for uuid_key, app_info in app_lookup.items():
         if uuid_key.lower() == app_uuid:
-            app_id = app_info.get('id')
+            # app_info may be a string (app ID) or a dict with 'id' key
+            if isinstance(app_info, dict):
+                app_id = app_info.get('id')
+            else:
+                app_id = str(app_info)
             is_new_app = False
             break
 
@@ -162,14 +168,29 @@ def publish_submit(request, project_id):
     app_uuid = (project.app_uuid or '').lower()
     pbw_data = _normalize_pbw_uuid(pbw_data, app_uuid)
 
-    # Build multipart form data
-    files = {'pbw': ('app.pbw', pbw_data, 'application/octet-stream')}
+    # Build multipart form data (list-of-tuples to allow duplicate field names)
+    files = [('pbwFile', ('app.pbw', pbw_data, 'application/octet-stream'))]
 
-    # Collect screenshot files (keys like screenshot_basalt_0, screenshot_basalt_1, etc.)
+    # Collect screenshot files (keys like screenshot_{platform}_{index} from frontend)
+    # Remap to screenshots_{platform} — pebble-tool uses this field name for BOTH
+    # static screenshots and GIFs (the API distinguishes by content type).
     for key in request.FILES:
         if key.startswith('screenshot_'):
             f = request.FILES[key]
-            files[key] = (f.name, f.read(), f.content_type)
+            # Parse platform from screenshot_{platform}_{index}
+            parts = key.split('_', 2)  # ['screenshot', platform, index]
+            if len(parts) >= 2:
+                platform = parts[1]
+            else:
+                platform = 'unknown'
+            # Determine correct MIME type from filename extension
+            is_gif = (f.content_type == 'image/gif' or
+                      f.name.lower().endswith('.gif'))
+            content_type = 'image/gif' if is_gif else 'image/png'
+            field_name = 'screenshots_%s' % platform
+            logger.info("Attaching file: field=%s name=%s content_type=%s size=%d",
+                        field_name, f.name, content_type, f.size)
+            files.append((field_name, (f.name, f.read(), content_type)))
 
     if is_new_app:
         # Validation for new apps
@@ -188,61 +209,78 @@ def publish_submit(request, project_id):
             'type': 'watchface' if project.app_is_watchface else 'watchapp',
             'visible': 'true',
             'isPublished': 'true',
+            'source': source or '',
+            'releaseNotes': release_notes or '',
         }
-        if source:
-            data['source'] = source
         if category and not project.app_is_watchface:
             data['category'] = category
-        if release_notes:
-            data['releaseNotes'] = release_notes
 
         # Handle icons
         if 'icon_small' in request.FILES:
             f = request.FILES['icon_small']
-            files['iconSmall'] = (f.name, f.read(), f.content_type)
+            files.append(('iconSmall', (f.name, f.read(), f.content_type)))
         if 'icon_large' in request.FILES:
             f = request.FILES['icon_large']
-            files['iconLarge'] = (f.name, f.read(), f.content_type)
+            files.append(('iconLarge', (f.name, f.read(), f.content_type)))
 
         # If no icons and it's a watchapp, send iconPrompt for AI generation
         if not project.app_is_watchface and 'icon_small' not in request.FILES:
-            data['iconPrompt'] = '%s: %s' % (name, description[:200])
+            data['iconPrompt'] = '%s: %s' % (name, description)
 
         url = '%s/api/dashboard/apps' % base
     else:
         # Existing app update
         if not app_id:
             raise BadRequest("App ID is required for updates.")
-        data = {}
-        if version:
-            data['version'] = version
-        if release_notes:
-            data['releaseNotes'] = release_notes
+        data = {
+            'version': version,
+            'releaseNotes': release_notes or '',
+            'isPublished': 'true',
+            'replaceScreenshots': 'false',
+        }
 
         url = '%s/api/dashboard/apps/%s/releases' % (base, app_id)
 
     # Forward to appstore API
+    screenshot_count = len(files) - 1  # subtract pbwFile
+    logger.info("Publishing to %s with %d screenshot files, data keys: %s, all files: %s",
+                url, screenshot_count, list(data.keys()),
+                [(name, fname, ct) for name, (fname, _, ct) in files])
     try:
         resp = http_requests.post(
             url,
             data=data,
             files=files,
             headers=_api_headers(token),
-            timeout=120,
+            timeout=300,
         )
     except http_requests.RequestException as e:
         logger.error("Appstore API request failed: %s", e)
         raise BadRequest("Could not connect to the app store. Please try again.")
 
+    logger.info("Appstore API response: status=%d body=%s", resp.status_code, resp.text[:1000])
     if resp.status_code in (200, 201):
         result = resp.json()
-        return {
+        logger.info("Publish success: %s", result)
+
+        # Forward screenshot results if present (releases endpoint reports failures)
+        screenshot_results = result.get('screenshotResults', {})
+        screenshot_warnings = []
+        for fail in screenshot_results.get('failed', []):
+            screenshot_warnings.append('%s: %s' % (fail.get('platform', '?'), fail.get('error', 'unknown')))
+        if screenshot_warnings:
+            logger.warning("Screenshot upload failures: %s", screenshot_warnings)
+
+        ret = {
             'published': True,
             'app_id': result.get('id') or app_id,
-            'app_url': result.get('url', ''),
         }
+        if screenshot_warnings:
+            ret['screenshot_warnings'] = screenshot_warnings
+        return ret
     else:
         error_text = resp.text
+        logger.warning("Appstore API error: status=%d body=%s", resp.status_code, error_text[:500])
         try:
             error_json = resp.json()
             error_text = error_json.get('message', error_json.get('error', resp.text))

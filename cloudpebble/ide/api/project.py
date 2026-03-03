@@ -3,6 +3,7 @@ import json
 import time
 import logging
 import os
+import uuid as uuid_module
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -697,6 +698,9 @@ def create_project(request):
                 # do_import_archive() persists imported metadata (including targetPlatforms) using its own Project instance.
                 # Refresh to avoid writing stale defaults back over imported values.
                 project.refresh_from_db()
+                # Templates ship with a fixed UUID in their manifest. Generate a new one
+                # so every project created from the same template gets its own unique UUID.
+                project.app_uuid = str(uuid_module.uuid4())
                 # Upstream imported JS templates may intentionally use style that fails legacy JSHint defaults.
                 # Keep creation/build parity with source templates by disabling JSHint on imported Alloy projects.
                 if project_type == 'alloy':
@@ -777,6 +781,17 @@ def save_project_settings(request, project_id):
         return BadRequest(str(e))
     else:
         send_td_event('cloudpebble_save_project_settings', request=request, project=project)
+
+
+@require_POST
+@login_required
+@json_view
+def regenerate_uuid(request, project_id):
+    project = get_object_or_404(Project, pk=project_id, owner=request.user)
+    new_uuid = str(uuid_module.uuid4())
+    project.app_uuid = new_uuid
+    project.save(update_fields=['app_uuid'])
+    return {'uuid': new_uuid}
 
 
 @require_POST

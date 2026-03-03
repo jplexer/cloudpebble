@@ -23,6 +23,7 @@ from ide.api.project import (
     import_github,
     do_import_gist,
     get_projects,
+    regenerate_uuid,
 )
 from ide.api.resource import (
     create_resource,
@@ -88,6 +89,11 @@ urlpatterns = [
         r"^project/(?P<project_id>\d+)/save_settings",
         save_project_settings,
         name="save_project_settings",
+    ),
+    re_path(
+        r"^project/(?P<project_id>\d+)/regenerate_uuid",
+        regenerate_uuid,
+        name="regenerate_uuid",
     ),
     re_path(
         r"^project/(?P<project_id>\d+)/save_dependencies",

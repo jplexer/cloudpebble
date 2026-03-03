@@ -382,4 +382,51 @@ var SharedPebble = new (function() {
         var event = args.shift();
         self.trigger.apply(self, [event, mPebble].concat(args));
     }
+
+    /**
+     * Refresh the Firebase ID token and sync it to the Django session.
+     * Call this before any server-side API that uses the session token
+     * (e.g. publish preflight/submit). Returns a Promise.
+     *
+     * Uses /accounts/api/firebase-refresh-token which updates the session
+     * token WITHOUT calling login() (preserves session ID and CSRF token).
+     *
+     * Waits for onAuthStateChanged to ensure Firebase has restored the
+     * user from IndexedDB before checking currentUser.
+     */
+    this.refreshFirebaseToken = function() {
+        if (!window.firebase || !firebase.auth) {
+            return Promise.resolve();
+        }
+        var auth = firebase.auth();
+
+        // Wait for Firebase to restore auth state from IndexedDB
+        return new Promise(function(resolve) {
+            var unsubscribe = auth.onAuthStateChanged(function(user) {
+                unsubscribe();
+                resolve(user);
+            });
+        }).then(function(user) {
+            if (!user) {
+                return null;
+            }
+            return Promise.resolve(user.getIdToken(false)).then(function(idToken) {
+                if (!idToken) {
+                    return null;
+                }
+                return Promise.resolve(user.getIdTokenResult(false)).then(function(result) {
+                    if (result && result.expirationTime) {
+                        USER_SETTINGS.firebase_token_exp = Math.floor(new Date(result.expirationTime).getTime() / 1000);
+                    }
+                    USER_SETTINGS.firebase_token = idToken;
+                    return Ajax.Post('/accounts/api/firebase-refresh-token', {
+                        id_token: idToken
+                    });
+                });
+            });
+        }).catch(function(error) {
+            console.warn("Failed to refresh Firebase token:", error);
+            return null;
+        });
+    };
 })();

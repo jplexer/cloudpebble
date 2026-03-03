@@ -2,6 +2,8 @@
 <div id="publish-pane-template" class="hide publish-pane">
     <div class="well alert hide" id="publish-error"></div>
 
+    <h3 id="publish-title" style="display: none;"></h3>
+
     <div class="well" id="publish-status-area">
         <p id="publish-status-text">Checking app store status...</p>
         <div class="progress progress-striped active" id="publish-preflight-progress">
@@ -75,17 +77,19 @@
                 <h4>Screenshots</h4>
                 <p class="muted" id="publish-screenshot-hint">Capture screenshots from the emulator for each platform your app supports.</p>
                 <div id="publish-screenshot-platforms"></div>
-                <button type="button" class="btn" id="publish-capture-btn">
-                    Capture Screenshots
-                </button>
-                <span id="publish-capture-status" class="muted" style="margin-left: 8px;"></span>
+                <div style="margin-top: 8px;">
+                    <button type="button" class="btn btn-block" id="publish-capture-btn" style="width: auto;">
+                        Auto-generate All Platforms
+                    </button>
+                </div>
+                <span id="publish-capture-status" class="muted" style="display: block; margin-top: 4px;"></span>
             </div>
 
             <div class="well">
                 <p class="muted hide" id="publish-no-build-msg">
                     No successful build found. Please build your project before publishing.
                 </p>
-                <button type="submit" class="btn btn-primary btn-large" id="publish-submit-btn" disabled style="display: none; font-size: 16px; padding: 10px 30px; font-weight: bold;">
+                <button type="submit" class="btn btn-primary btn-large btn-block" id="publish-submit-btn" disabled style="display: none; width: auto; font-size: 16px; padding: 12px 30px; font-weight: bold;">
                     Publish to App Store
                 </button>
                 <span id="publish-submit-status" style="margin-left: 8px;"></span>
@@ -93,8 +97,25 @@
         </form>
     </div>
 
-    <div class="well alert alert-success hide" id="publish-success">
-        <p><strong>Published successfully!</strong></p>
-        <p><a href="#" id="publish-app-link" target="_blank">View on App Store</a></p>
+    <div id="publish-success" class="hide">
+        <div class="well">
+            <p><strong>Published successfully!</strong></p>
+        </div>
+        <div class="well">
+            <div class="control-group" id="publish-success-store-link" style="margin-bottom: 0;">
+                <label class="control-label">App Store</label>
+                <div class="controls" style="padding-top: 5px;">
+                    <a href="#" id="publish-app-link" target="_blank">View on App Store</a>
+                </div>
+            </div>
+        </div>
+        <div class="well">
+            <div class="control-group" id="publish-success-dashboard-link" style="margin-bottom: 0;">
+                <label class="control-label">Dashboard</label>
+                <div class="controls" style="padding-top: 5px;">
+                    <a href="#" id="publish-dashboard-link" target="_blank">Edit on Developer Dashboard</a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
