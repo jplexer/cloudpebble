@@ -72,10 +72,12 @@
                     <input type="submit" class="btn" value="{% trans 'Install GitHub app' %}">
                     {% csrf_token %}
                 </form>
+                {% if show_github_repo_sync_manual_auth %}
                 <form method="post" action="{% url 'ide:start_github_repo_sync_auth' %}" class="github-action">
                     <input type="submit" class="btn btn-primary" value="{% trans 'Link your GitHub account' %}">
                     {% csrf_token %}
                 </form>
+                {% endif %}
                 {% endif %}
                 </div>
                 <p class="github-help">{% trans 'Used for linking projects to GitHub repositories and push/pull sync.' %}</p>

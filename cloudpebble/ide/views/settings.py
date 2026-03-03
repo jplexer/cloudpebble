@@ -29,6 +29,7 @@ def settings_page(request):
         github_repo_sync = request.user.github_repo_sync
     except UserGithubRepoSync.DoesNotExist:
         github_repo_sync = None
+    show_github_repo_sync_manual_auth = urllib.parse.urlsplit(settings.PUBLIC_URL).hostname in ('localhost', '127.0.0.1')
 
     if request.method == 'POST':
         form = SettingsForm(request.POST, instance=user_settings)
@@ -40,6 +41,7 @@ def settings_page(request):
                 'saved': True,
                 'github_dev': github_dev,
                 'github_repo_sync': github_repo_sync,
+                'show_github_repo_sync_manual_auth': show_github_repo_sync_manual_auth,
             })
 
     else:
@@ -52,6 +54,7 @@ def settings_page(request):
         'saved': False,
         'github_dev': github_dev,
         'github_repo_sync': github_repo_sync,
+        'show_github_repo_sync_manual_auth': show_github_repo_sync_manual_auth,
     })
 
 

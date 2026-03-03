@@ -15,6 +15,50 @@ docker compose up
 # Open http://localhost:8080 and register an account
 ```
 
+### Test GitHub Repo Sync locally
+
+The `GitHub Repo Sync` card changes based on `PUBLIC_URL`, not the browser hostname.
+
+To verify the localhost behavior:
+
+```bash
+PUBLIC_URL=http://localhost:8080 docker compose up -d --build --force-recreate web nginx
+# Open http://localhost:8080/ide/settings
+```
+
+Expected in `GitHub Repo Sync`: `Install GitHub app` and `Link your GitHub account`.
+
+To complete the localhost GitHub Repo Sync flow:
+
+1. In the localhost `GitHub Repo Sync` card, click `Install GitHub app`.
+2. Complete the GitHub App installation in GitHub.
+3. After installation, GitHub currently redirects to the production callback URL instead of back to localhost.
+4. Close that production tab or window.
+5. Return to your existing localhost `Settings` page and click `Link your GitHub account` in the `GitHub Repo Sync` card to complete the local auth step.
+
+In short: on localhost, `Install GitHub app` handles the GitHub-side installation, then `Link your GitHub account` finishes the local CloudPebble auth flow.
+
+In production, the `Install GitHub app` button handles the full Repo Sync flow: it installs the GitHub App, authorizes it, and redirects back to the production `Settings` page with the user linked for `GitHub Repo Sync`.
+
+To verify the prod-like behavior locally:
+
+```bash
+PUBLIC_URL=http://prod-preview:8080 docker compose up -d --build --force-recreate web nginx
+# Open http://localhost:8080/ide/settings
+```
+
+Expected in `GitHub Repo Sync`: `Install GitHub app` only.
+
+This prod-like mode is for checking button visibility only. Do not click the GitHub buttons in this mode unless that non-local `PUBLIC_URL` is actually reachable.
+
+You can confirm the running value with:
+
+```bash
+docker compose exec web /usr/local/bin/python manage.py shell -c "from django.conf import settings; import urllib.parse; print(settings.PUBLIC_URL); print(urllib.parse.urlsplit(settings.PUBLIC_URL).hostname)"
+```
+
+Use a hard refresh or private window if the old button state is still shown.
+
 For HTTPS behind a reverse proxy:
 
 ```bash

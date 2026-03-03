@@ -318,5 +318,15 @@ class TestGithubRepoSync(SimpleTestCase):
         response = settings_page(request)
 
         self.assertContains(response, 'Install GitHub app')
-        self.assertContains(response, 'Link your GitHub account')
+        self.assertContains(response, 'Link your GitHub account', count=2)
+        self.assertContains(response, 'target="_blank"')
+
+    @override_settings(PUBLIC_URL='https://cloudpebble.example.com/')
+    def test_settings_page_hides_manual_repo_sync_auth_for_non_local_public_url(self):
+        request = self._request('get', '/ide/settings', FakeUser(), with_messages=True)
+
+        response = settings_page(request)
+
+        self.assertContains(response, 'Install GitHub app')
+        self.assertContains(response, 'Link your GitHub account', count=1)
         self.assertContains(response, 'target="_blank"')
