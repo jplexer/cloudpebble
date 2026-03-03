@@ -253,6 +253,9 @@ CloudPebble.Sidebar = (function() {
             $('#sidebar-pane-settings > a').click(CloudPebble.Settings.Show);
             $('#sidebar-pane-github > a').click(CloudPebble.GitHub.Show);
             $('#sidebar-pane-timeline > a').click(CloudPebble.Timeline.show);
+            if ($('#sidebar-pane-publish').length) {
+                $('#sidebar-pane-publish > a').click(CloudPebble.Publish.Show);
+            }
             create_initial_sections(CloudPebble.ProjectInfo.type);
         },
         SetPopover: function(pane_id, title, content) {

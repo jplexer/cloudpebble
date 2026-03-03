@@ -51,6 +51,7 @@ from ide.api.user import (
 from ide.api.ycm import init_autocomplete
 from ide.api.qemu import launch_emulator, generate_phone_token, handle_phone_token
 from ide.api.npm import npm_search, npm_info
+from ide.api.publish import publish_preflight, publish_submit
 from ide.views.index import index
 from ide.views.project import (
     view_project,
@@ -282,6 +283,16 @@ urlpatterns = [
     re_path(r"^transition/accept", transition_accept, name="transition_accept"),
     re_path(r"^transition/export", transition_export, name="transition_export"),
     re_path(r"^transition/delete", transition_delete, name="transition_delete"),
+    re_path(
+        r"^project/(?P<project_id>\d+)/publish/preflight$",
+        publish_preflight,
+        name="publish_preflight",
+    ),
+    re_path(
+        r"^project/(?P<project_id>\d+)/publish/submit$",
+        publish_submit,
+        name="publish_submit",
+    ),
     re_path(r"^packages/search", npm_search, name="package_search"),
     re_path(r"^packages/info", npm_info, name="package_info"),
     re_path(r"^ping_phone$", ping_phone),
