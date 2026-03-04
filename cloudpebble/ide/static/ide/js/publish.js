@@ -25,14 +25,14 @@ CloudPebble.Publish = (function() {
     }
 
     function showError(message) {
-        var errorEl = $('#publish-error').empty().removeClass('hide').addClass('alert-error');
+        var errorEl = $('#publish-error').empty().removeClass('hide alert-success alert-warning').addClass('alert-error');
         var lowerMsg = (message || '').toLowerCase();
 
         // Version conflict: show message with deep link to settings
         if (lowerMsg.indexOf('version') !== -1 && lowerMsg.indexOf('already exists') !== -1) {
             var version = CloudPebble.ProjectInfo.app_version_label || '';
-            errorEl.append($('<span>').text('Version ' + version + ' already exists. '));
-            var settingsLink = $('<a href="#">').text('Update version number.');
+            errorEl.append($('<span>').text(interpolate(gettext('Version %s already exists. '), [version])));
+            var settingsLink = $('<a href="#">').text(gettext('Update version number.'));
             settingsLink.click(function(e) {
                 e.preventDefault();
                 CloudPebble.Settings.Show();
@@ -42,18 +42,18 @@ CloudPebble.Publish = (function() {
         // UUID conflict: show regenerate button
         else if (lowerMsg.indexOf('uuid') !== -1) {
             errorEl.append($('<span>').text(message));
-            var regenBtn = $('<button type="button" class="btn btn-warning" style="margin-top: 8px; display: block;">')
-                .text('Regenerate UUID');
+            var regenBtn = $('<button type="button" class="btn btn-small" style="margin-top: 8px; display: block;">')
+                .text(gettext('Regenerate UUID'));
             regenBtn.click(function() {
-                regenBtn.attr('disabled', 'disabled').text('Regenerating...');
+                regenBtn.attr('disabled', 'disabled').text(gettext('Regenerating...'));
                 Ajax.Post('/ide/project/' + PROJECT_ID + '/regenerate_uuid')
                 .then(function(data) {
                     CloudPebble.ProjectInfo.app_uuid = data.uuid;
                     hideError();
                     preflight();
                 }).catch(function(err) {
-                    regenBtn.removeAttr('disabled').text('Regenerate UUID');
-                    showError('Failed to regenerate UUID: ' + err.message);
+                    regenBtn.removeAttr('disabled').text(gettext('Regenerate UUID'));
+                    showError(interpolate(gettext('Failed to regenerate UUID: %s'), [err.message]));
                 });
             });
             errorEl.append(regenBtn);
@@ -91,9 +91,12 @@ CloudPebble.Publish = (function() {
 
                 if (data.is_new_app) {
                     $('#publish-title').text('Publish on Pebble Appstore').show();
+                    $('#publish-version-display-group').hide();
                     showNewAppFields(data);
                 } else {
                     $('#publish-title').text('Publish Update').show();
+                    $('#publish-version-display').text(CloudPebble.ProjectInfo.app_version_label || '');
+                    $('#publish-version-display-group').show();
                     hideNewAppFields();
                 }
 
@@ -183,25 +186,24 @@ CloudPebble.Publish = (function() {
         var platforms = getPlatforms();
 
         _.each(platforms, function(platform) {
-            var section = $('<div class="publish-screenshot-platform" style="margin-bottom: 8px;">')
+            var section = $('<div class="control-group publish-screenshot-platform">')
                 .attr('data-platform', platform);
 
-            var header = $('<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">');
-            header.append($('<strong>').text(platform));
+            section.append($('<label class="control-label">').text(platform.toUpperCase()));
 
-            var captureBtn = $('<button type="button" class="btn publish-platform-capture-btn">')
-                .text('Auto-generate')
-                .css({'flex-shrink': '0', 'width': 'auto'})
+            var controls = $('<div class="controls">');
+
+            var captureBtn = $('<a href="#" class="btn btn-small publish-platform-capture-btn">')
+                .text(gettext('Auto-generate'))
                 .attr('data-platform', platform)
                 .click(function(e) {
                     e.preventDefault();
                     captureSinglePlatform(platform);
                 });
-            header.append(captureBtn);
+            controls.append(captureBtn);
 
-            var uploadBtn = $('<button type="button" class="btn publish-platform-upload-btn">')
-                .text('Upload')
-                .css({'flex-shrink': '0', 'width': 'auto'})
+            var uploadBtn = $('<a href="#" class="btn btn-small publish-platform-upload-btn">')
+                .text(gettext('Upload'))
                 .attr('data-platform', platform);
             var fileInput = $('<input type="file" accept="image/png,image/gif" multiple style="display:none;">')
                 .attr('data-platform', platform);
@@ -234,11 +236,11 @@ CloudPebble.Publish = (function() {
                 // Reset so same file can be re-selected
                 fileInput.val('');
             });
-            header.append(uploadBtn);
-            header.append(fileInput);
+            controls.append(uploadBtn);
+            controls.append(fileInput);
 
-            section.append(header);
-            section.append($('<div class="publish-screenshot-thumbs">'));
+            controls.append($('<div class="publish-screenshot-thumbs">'));
+            section.append(controls);
             container.append(section);
         });
     }
@@ -253,10 +255,10 @@ CloudPebble.Publish = (function() {
             var items = mScreenshots[platform] || [];
 
             _.each(items, function(item, index) {
-                var thumb = $('<div class="publish-screenshot-thumb">');
-                thumb.append($('<img>').attr('src', item.url).css({maxWidth: '80px', maxHeight: '80px'}));
-                thumb.append($('<span class="muted">').text(' ' + item.type.toUpperCase()));
-                var removeBtn = $('<a href="#" class="muted" style="margin-left: 4px;">').text('[x]');
+                var thumb = $('<div class="publish-screenshot-thumb" style="display: inline-block; margin-right: 10px; margin-bottom: 10px; text-align: center; vertical-align: top;">');
+                thumb.append($('<img>').attr('src', item.url).css({maxWidth: '80px', maxHeight: '80px', display: 'block', margin: '0 auto 4px auto', border: '1px solid #333'}));
+                thumb.append($('<span class="muted" style="font-size: 10px; text-transform: uppercase;">').text(item.type));
+                var removeBtn = $('<a href="#" class="muted" style="margin-left: 6px; font-weight: bold; text-decoration: none;">').text('×');
                 removeBtn.click(function(e) {
                     e.preventDefault();
                     items.splice(index, 1);
@@ -648,9 +650,9 @@ CloudPebble.Publish = (function() {
         // Toggle icon upload fields
         pane.find('input[name="publish-icon-mode"]').change(function() {
             if ($(this).val() === 'upload') {
-                pane.find('#publish-icon-uploads').show();
+                pane.find('#publish-icon-uploads').removeClass('hide');
             } else {
-                pane.find('#publish-icon-uploads').hide();
+                pane.find('#publish-icon-uploads').addClass('hide');
             }
         });
     }

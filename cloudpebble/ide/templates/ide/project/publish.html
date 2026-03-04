@@ -1,119 +1,146 @@
 {% load i18n %}
-<div id="publish-pane-template" class="hide publish-pane">
-    <div class="well alert hide" id="publish-error"></div>
-
-    <h3 id="publish-title" style="display: none;"></h3>
+<div id="publish-pane-template" class="hide publish-pane settings-pane">
+    <div class="well alert alert-error hide fixed-well" id="publish-error"></div>
 
     <div class="well" id="publish-status-area">
-        <p id="publish-status-text">Checking app store status...</p>
+        <div class="control-group">
+            <div class="static" id="publish-status-text">
+                {% trans 'Checking app store status...' %}
+            </div>
+        </div>
         <div class="progress progress-striped active" id="publish-preflight-progress">
             <div class="bar" style="width: 100%;"></div>
         </div>
     </div>
 
-    <div id="publish-form-area" style="display: none;">
+    <div id="publish-form-area" class="hide">
+        <h3 id="publish-title" class="hide"></h3>
         <form class="form-horizontal" id="publish-form">
             <div class="well" id="publish-new-app-fields" style="display: none;">
-                <h4>New App Details</h4>
+                <legend>{% trans 'App Details' %}</legend>
                 <div class="control-group">
-                    <label class="control-label" for="publish-name">App Name</label>
+                    <label class="control-label" for="publish-name">{% trans 'App name' %}</label>
                     <div class="controls">
-                        <input type="text" id="publish-name" class="span9">
+                        <input type="text" id="publish-name">
                     </div>
                 </div>
                 <div class="control-group">
-                    <label class="control-label" for="publish-version">Version</label>
+                    <label class="control-label" for="publish-version">{% trans 'Version' %}</label>
                     <div class="controls">
-                        <input type="text" id="publish-version" class="span2">
+                        <input type="text" id="publish-version">
                     </div>
                 </div>
                 <div class="control-group">
-                    <label class="control-label" for="publish-description">Description</label>
+                    <label class="control-label" for="publish-description">{% trans 'Description' %}</label>
                     <div class="controls">
-                        <textarea id="publish-description" rows="4" class="span9" placeholder="Describe your app..."></textarea>
+                        <textarea id="publish-description" rows="4" placeholder="{% trans 'Describe your app...' %}"></textarea>
                     </div>
                 </div>
                 <div class="control-group">
-                    <label class="control-label" for="publish-source">Source URL <span class="muted">(optional)</span></label>
+                    <label class="control-label" for="publish-source">{% trans 'Source URL' %}</label>
                     <div class="controls">
-                        <input type="text" id="publish-source" class="span9" placeholder="https://github.com/...">
+                        <input type="text" id="publish-source" placeholder="https://github.com/...">
+                        <span class="help-block">{% trans 'Optional' %}</span>
                     </div>
                 </div>
                 <div class="control-group" id="publish-category-group" style="display: none;">
-                    <label class="control-label" for="publish-category">Category</label>
+                    <label class="control-label" for="publish-category">{% trans 'Category' %}</label>
                     <div class="controls">
-                        <select id="publish-category" class="span4"></select>
+                        <select id="publish-category"></select>
                     </div>
                 </div>
                 <div class="control-group" id="publish-icon-group" style="display: none;">
-                    <label class="control-label">Icons</label>
+                    <label class="control-label">{% trans 'Icons' %}</label>
                     <div class="controls">
                         <label class="radio">
                             <input type="radio" name="publish-icon-mode" value="auto" checked>
-                            Auto-generate icons
+                            {% trans 'Auto-generate icons' %}
                         </label>
                         <label class="radio">
                             <input type="radio" name="publish-icon-mode" value="upload">
-                            Upload icons
+                            {% trans 'Upload icons' %}
                         </label>
-                        <div id="publish-icon-uploads" style="display: none; margin-top: 8px;">
-                            <label>Small icon (48x48): <input type="file" id="publish-icon-small" accept="image/png"></label>
-                            <label style="margin-top: 4px;">Large icon (144x144): <input type="file" id="publish-icon-large" accept="image/png"></label>
+                        <div id="publish-icon-uploads" class="hide" style="margin-top: 10px;">
+                            <div class="control-group" style="margin-bottom: 5px;">
+                                <label class="control-label" for="publish-icon-small" style="width: 100px;">{% trans 'Small (48x48)' %}</label>
+                                <div class="controls" style="margin-left: 120px;">
+                                    <input type="file" id="publish-icon-small" accept="image/png">
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label class="control-label" for="publish-icon-large" style="width: 100px;">{% trans 'Large (144x144)' %}</label>
+                                <div class="controls" style="margin-left: 120px;">
+                                    <input type="file" id="publish-icon-large" accept="image/png">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="well">
-                <div class="control-group">
-                    <label class="control-label" for="publish-release-notes">Release Notes <span class="muted">(optional)</span></label>
+                <div class="control-group" id="publish-version-display-group">
+                    <label class="control-label">{% trans 'Version' %}</label>
                     <div class="controls">
-                        <textarea id="publish-release-notes" rows="3" class="span9" placeholder="What's new in this version..."></textarea>
+                        <div class="static" id="publish-version-display"></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="publish-release-notes">{% trans 'Release Notes' %}</label>
+                    <div class="controls">
+                        <textarea id="publish-release-notes" rows="3" placeholder="{% trans 'What\'s new in this version...' %}"></textarea>
+                        <span class="help-block">{% trans 'Optional' %}</span>
                     </div>
                 </div>
             </div>
 
             <div class="well">
-                <h4>Screenshots</h4>
-                <p class="muted" id="publish-screenshot-hint">Capture screenshots from the emulator for each platform your app supports.</p>
-                <div id="publish-screenshot-platforms"></div>
-                <div style="margin-top: 8px;">
-                    <button type="button" class="btn btn-block" id="publish-capture-btn" style="width: auto;">
-                        Auto-generate All Platforms
-                    </button>
+                <legend>{% trans 'Screenshots' %}</legend>
+                <div class="control-group" style="margin-bottom: 20px;">
+                    <span class="help-block" id="publish-screenshot-hint" style="margin-left: 0; width: auto;">
+                        {% trans 'Capture screenshots from the emulator for each platform your app supports.' %}
+                    </span>
                 </div>
-                <span id="publish-capture-status" class="muted" style="display: block; margin-top: 4px;"></span>
+                <div id="publish-screenshot-platforms"></div>
+                <div class="control-group">
+                    <div class="controls">
+                        <button type="button" class="btn btn-primary" id="publish-capture-btn">
+                            {% trans 'Auto-generate All' %}
+                        </button>
+                        <span id="publish-capture-status" class="help-block" style="display: inline-block; margin-left: 10px; padding-top: 0; width: auto; vertical-align: middle;"></span>
+                    </div>
+                </div>
             </div>
 
-            <div class="well">
-                <p class="muted hide" id="publish-no-build-msg">
-                    No successful build found. Please build your project before publishing.
+            <div class="well form-actions">
+                <p class="help-block hide" id="publish-no-build-msg" style="margin-left: 0; width: auto; color: #b2171e;">
+                    {% trans 'No successful build found. Please build your project before publishing.' %}
                 </p>
-                <button type="submit" class="btn btn-primary btn-large btn-block" id="publish-submit-btn" disabled style="display: none; width: auto; font-size: 16px; padding: 12px 30px; font-weight: bold;">
-                    Publish to App Store
+                <button type="submit" class="btn btn-primary" id="publish-submit-btn" disabled style="display: none;">
+                    {% trans 'Publish to App Store' %}
                 </button>
-                <span id="publish-submit-status" style="margin-left: 8px;"></span>
+                <span id="publish-submit-status"></span>
             </div>
         </form>
     </div>
 
     <div id="publish-success" class="hide">
-        <div class="well">
-            <p><strong>Published successfully!</strong></p>
+        <div class="well" style="text-align: center;">
+            <h2 class="publish-success-header">🎉 {% trans 'PUBLISHED SUCCESSFULLY!' %} 🎉</h2>
         </div>
         <div class="well">
-            <div class="control-group" id="publish-success-store-link" style="margin-bottom: 0;">
-                <label class="control-label">App Store</label>
-                <div class="controls" style="padding-top: 5px;">
-                    <a href="#" id="publish-app-link" target="_blank">View on App Store</a>
+            <div class="control-group" id="publish-success-store-link" style="margin-bottom: 0; display: flex; align-items: center;">
+                <label class="control-label" style="margin-bottom: 0;">{% trans 'App Store' %}</label>
+                <div class="controls" style="margin-bottom: 0; margin-left: 20px;">
+                    <a href="#" id="publish-app-link" target="_blank" class="btn btn-primary" style="width: 300px;">{% trans 'View on App Store' %}</a>
                 </div>
             </div>
         </div>
         <div class="well">
-            <div class="control-group" id="publish-success-dashboard-link" style="margin-bottom: 0;">
-                <label class="control-label">Dashboard</label>
-                <div class="controls" style="padding-top: 5px;">
-                    <a href="#" id="publish-dashboard-link" target="_blank">Edit on Developer Dashboard</a>
+            <div class="control-group" id="publish-success-dashboard-link" style="margin-bottom: 0; display: flex; align-items: center;">
+                <label class="control-label" style="margin-bottom: 0;">{% trans 'Dashboard' %}</label>
+                <div class="controls" style="margin-bottom: 0; margin-left: 20px;">
+                    <a href="#" id="publish-dashboard-link" target="_blank" class="btn btn-primary" style="width: 300px;">{% trans 'Edit on Developer Dashboard' %}</a>
                 </div>
             </div>
         </div>
