@@ -339,6 +339,11 @@ CloudPebble.Resources = (function() {
             throw new Error(gettext("You must provide a valid filename. Only alphanumerics and characters in the set \"_(). -\" are allowed."));
         }
 
+        // Font resources must have a recognized font file extension
+        if (kind === 'font' && !/\.(ttf|otf)$/i.test(name)) {
+            throw new Error(gettext("Font resources must have a .ttf or .otf file extension."));
+        }
+
         // Extract the tags from each variant which has changed
         function extract_tags(element) {
             return element

@@ -1,9 +1,11 @@
 import json
+import os
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import transaction, IntegrityError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST, require_safe
 from ide.models.project import Project
 from ide.models.files import ResourceFile, ResourceIdentifier, ResourceVariant
@@ -43,6 +45,10 @@ def create_resource(request, project_id):
     resource_ids = json.loads(request.POST['resource_ids'])
     posted_file = request.FILES.get('file', None)
     file_name = request.POST['file_name']
+    if kind == 'font':
+        ext = os.path.splitext(file_name)[1].lower()
+        if ext not in ('.ttf', '.otf'):
+            raise BadRequest(_("Font resources must have a .ttf or .otf file extension."))
     new_tags = json.loads(request.POST['new_tags'])
     resources = []
     try:
@@ -160,6 +166,10 @@ def update_resource(request, project_id, resource_id):
     resource = get_object_or_404(ResourceFile, pk=resource_id, project=project)
     resource_ids = json.loads(request.POST['resource_ids'])
     file_name = request.POST.get('file_name', None)
+    if file_name and resource.kind == 'font':
+        ext = os.path.splitext(file_name)[1].lower()
+        if ext not in ('.ttf', '.otf'):
+            raise BadRequest(_("Font resources must have a .ttf or .otf file extension."))
     variant_tags = json.loads(request.POST.get('variants', "[]"))
     new_tags = json.loads(request.POST.get('new_tags', "[]"))
     replacement_map = json.loads(request.POST.get('replacements', "[]"))
