@@ -2,7 +2,7 @@
 """E2E smoke test for CloudPebble.
 
 Exercises the full user flow: create project from template, build via Celery,
-install on emulator, verify APP_LOG output. Runs against a live environment
+launch emulator, install .pbw over WebSocket. Runs against a live environment
 with zero shims — real HTTP, real Celery, real emulator.
 
 Usage:
