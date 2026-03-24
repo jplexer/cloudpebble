@@ -296,6 +296,11 @@ def build(ctx):
         else:
             binaries.append({'platform': p, 'app_elf': app_elf})
 
+    ctx(features='subst',
+        source='package.json',
+        target='js/package.json',
+        is_copy=True)
+
     ctx.set_group('bundle')
     ctx.pbl_bundle(binaries=binaries, js=ctx.path.ant_glob(['src/pkjs/**/*.js', 'src/pkjs/**/*.json']), js_entry_file='src/pkjs/{{pkjs_entry}}')
 """
@@ -358,6 +363,11 @@ def build(ctx):
             ctx.pbl_worker(source=ctx.path.ant_glob('worker_src/c/**/*.c'), target=worker_elf)
         else:
             binaries.append({'platform': p, 'app_elf': app_elf})
+
+    ctx(features='subst',
+        source='package.json',
+        target='js/package.json',
+        is_copy=True)
 
     ctx.set_group('bundle')
     ctx.pbl_bundle(binaries=binaries, js=ctx.path.ant_glob(['src/pkjs/**/*.js', 'src/pkjs/**/*.json']), js_entry_file='src/pkjs/{{pkjs_entry}}')
