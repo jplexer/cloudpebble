@@ -166,7 +166,9 @@ def firebase_login(request):
     request.session['firebase_id_token'] = token
     request.session['firebase_id_token_exp'] = decoded.get('exp')
 
-    return json_response()
+    response = json_response()
+    _set_developer_cookie(response, decoded['sub'], email)
+    return response
 
 
 @require_POST

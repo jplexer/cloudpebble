@@ -21,9 +21,9 @@ $(function() {
 
     // SSO: if cross-domain session cookie exists, auto-sign-in via custom token
     if (!justSignedOut) {
-        $.get('/accounts/api/sso-custom-token').then(function(data) {
+        $.get('/accounts/api/sso-custom-token').done(function(data) {
             if (data.customToken) {
-                return firebase.auth().signInWithCustomToken(data.customToken).then(function(result) {
+                firebase.auth().signInWithCustomToken(data.customToken).then(function(result) {
                     return result.user.getIdToken();
                 }).then(function(idToken) {
                     return Ajax.Post('/accounts/api/firebase-login', {id_token: idToken});
@@ -31,9 +31,8 @@ $(function() {
                     location.href = '/ide/';
                 });
             }
-        }).catch(function() {
-            // No cross-domain session — normal splash page
         });
+        // .done() silently ignores failures (401 = no session = normal)
     }
 
     $('.btn-show-login').click(function() {
@@ -68,24 +67,20 @@ $(function() {
         firebase.auth().signInWithPopup(provider).then(function(result) {
             return result.user.getIdToken();
         }).then(function(idToken) {
-            // Create Django session AND set cross-domain developer cookie in parallel
-            return $.when(
-                Ajax.Post('/accounts/api/firebase-login', {id_token: idToken}),
-                Ajax.Post('/accounts/api/sso-set-cookie', {id_token: idToken})
-            );
+            // Create Django session (also sets cross-domain cookie server-side)
+            return Ajax.Post('/accounts/api/firebase-login', {
+                id_token: idToken
+            });
         }).then(function() {
             location.href = '/ide/';
-        }).catch(function(error) {
-            if (error.code === 'auth/account-exists-with-different-credential') {
+        }).fail(function(error) {
+            if (error && error.code === 'auth/account-exists-with-different-credential') {
                 var pendingCred = error.credential;
                 var email = error.customData ? error.customData.email : '';
-                // Try each other provider to find the one that owns this email.
-                // fetchSignInMethodsForEmail no longer works due to Firebase email enumeration protection.
                 var otherProviders = ['google', 'github', 'apple'].filter(function(p) { return p !== providerName; });
                 var providerNames = {google: 'Google', github: 'GitHub', apple: 'Apple'};
                 var otherLabels = otherProviders.map(function(p) { return providerNames[p]; }).join(' or ');
                 alert('An account already exists with ' + (email || 'this email') + ' using a different sign-in method. Please sign in with ' + otherLabels + ' to link your accounts.');
-                // Try the first other provider automatically
                 var tryProvider;
                 var tryName = otherProviders[0];
                 if (tryName === 'google') {
@@ -107,10 +102,10 @@ $(function() {
                 }).then(function() {
                     location.href = '/ide/';
                 });
-            } else if (error.code !== 'auth/popup-closed-by-user') {
+            } else if (!error || error.code !== 'auth/popup-closed-by-user') {
                 alert(error.message || error);
             }
-        }).finally(function() {
+        }).always(function() {
             $('#provider-chooser').find('.btn').removeAttr('disabled');
         });
     });
