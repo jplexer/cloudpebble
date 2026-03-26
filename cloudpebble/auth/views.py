@@ -91,7 +91,17 @@ def logout_view(request):
     logout(request)
     response = redirect("/")
     # Clear cross-domain session cookie so SSO doesn't re-sign-in
-    response.delete_cookie(SESSION_COOKIE_NAME, path='/', domain='.repebble.com')
+    response.set_cookie(
+        SESSION_COOKIE_NAME, '', max_age=0, path='/',
+        domain='.repebble.com', secure=True, httponly=True, samesite='Lax',
+    )
+    # Also clear any host-scoped cookie
+    response.set_cookie(
+        SESSION_COOKIE_NAME, '', max_age=0, path='/',
+        secure=True, httponly=True, samesite='Lax',
+    )
+    # Skip SSO auto-login on the redirect back to splash
+    response.set_cookie('__sso_skip', '1', max_age=5, path='/', samesite='Lax')
     return response
 
 

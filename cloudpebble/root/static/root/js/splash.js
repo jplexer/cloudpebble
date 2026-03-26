@@ -14,19 +14,22 @@ $(function() {
     var gMainContent = $('.main-container');
 
     // SSO: if cross-domain session cookie exists, auto-sign-in via custom token
-    $.get('/accounts/api/sso-custom-token').then(function(data) {
-        if (data.customToken) {
-            return firebase.auth().signInWithCustomToken(data.customToken).then(function(result) {
-                return result.user.getIdToken();
-            }).then(function(idToken) {
-                return Ajax.Post('/accounts/api/firebase-login', {id_token: idToken});
-            }).then(function() {
-                location.href = '/ide/';
-            });
-        }
-    }).catch(function() {
-        // No cross-domain session — normal splash page
-    });
+    // Skip if we just logged out (short-lived __sso_skip cookie)
+    if (document.cookie.indexOf('__sso_skip') === -1) {
+        $.get('/accounts/api/sso-custom-token').then(function(data) {
+            if (data.customToken) {
+                return firebase.auth().signInWithCustomToken(data.customToken).then(function(result) {
+                    return result.user.getIdToken();
+                }).then(function(idToken) {
+                    return Ajax.Post('/accounts/api/firebase-login', {id_token: idToken});
+                }).then(function() {
+                    location.href = '/ide/';
+                });
+            }
+        }).catch(function() {
+            // No cross-domain session — normal splash page
+        });
+    }
 
     $('.btn-show-login').click(function() {
         gMainContent.addClass('show-login');
