@@ -68,9 +68,11 @@ $(function() {
         firebase.auth().signInWithPopup(provider).then(function(result) {
             return result.user.getIdToken();
         }).then(function(idToken) {
-            return Ajax.Post('/accounts/api/firebase-login', {
-                id_token: idToken
-            });
+            // Create Django session AND set cross-domain developer cookie in parallel
+            return $.when(
+                Ajax.Post('/accounts/api/firebase-login', {id_token: idToken}),
+                Ajax.Post('/accounts/api/sso-set-cookie', {id_token: idToken})
+            );
         }).then(function() {
             location.href = '/ide/';
         }).catch(function(error) {

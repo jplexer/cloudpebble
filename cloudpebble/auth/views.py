@@ -166,9 +166,7 @@ def firebase_login(request):
     request.session['firebase_id_token'] = token
     request.session['firebase_id_token_exp'] = decoded.get('exp')
 
-    response = json_response()
-    _set_developer_cookie(response, decoded['sub'], email)
-    return response
+    return json_response()
 
 
 @require_POST
@@ -205,6 +203,35 @@ def firebase_refresh_token(request):
     request.session['firebase_id_token'] = token
     request.session['firebase_id_token_exp'] = decoded.get('exp')
     return json_response()
+
+
+@require_POST
+def sso_set_cookie(request):
+    """Proxy to appstore-api developer-check to set the cross-domain session cookie.
+
+    Forwards the Firebase ID token to the backend, which verifies it, checks if
+    the user is a developer, and returns Set-Cookie headers that we pass through.
+    """
+    id_token_value = request.POST.get('id_token', '')
+    if not id_token_value:
+        return json_failure("Missing id_token")
+
+    try:
+        resp = http_requests.post(
+            f'{settings.APPSTORE_API_BASE}/api/auth/firebase/developer-check',
+            json={'idToken': id_token_value},
+            timeout=5,
+            stream=True,
+        )
+        body = resp.json()
+        django_response = JsonResponse(body, status=resp.status_code)
+        # Forward Set-Cookie headers from the backend (raw preserves multiples)
+        for cookie_header in resp.raw.headers.getlist('Set-Cookie'):
+            django_response['Set-Cookie'] = cookie_header
+        return django_response
+    except Exception as e:
+        logger.warning('SSO set cookie proxy failed: %s', e)
+        return json_failure("SSO unavailable")
 
 
 @require_GET
