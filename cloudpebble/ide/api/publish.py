@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 import zipfile
 import io
 
@@ -31,6 +32,9 @@ def _get_firebase_token(request):
     token = request.session.get('firebase_id_token', '')
     if not token:
         raise BadRequest("Not signed in to Firebase. Please sign in and try again.")
+    exp = request.session.get('firebase_id_token_exp', 0)
+    if exp and time.time() > exp:
+        raise BadRequest("Firebase session expired. Please refresh the page and try again.")
     return token
 
 

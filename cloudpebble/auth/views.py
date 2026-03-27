@@ -25,7 +25,7 @@ SESSION_COOKIE_NAME = '__session_dashboard'
 SESSION_MAX_AGE = 14 * 24 * 60 * 60  # 14 days
 
 
-def _set_developer_cookie(response, firebase_uid, email):
+def _set_developer_cookie(response, firebase_uid, email, email_verified=False):
     """Set cross-domain developer session cookie if the user is a registered developer."""
     secret = settings.REPEBBLE_SESSION_SECRET
     if not secret:
@@ -38,7 +38,8 @@ def _set_developer_cookie(response, firebase_uid, email):
                 [firebase_uid],
             )
             row = cursor.fetchone()
-            if not row:
+            if not row and email_verified:
+                # Only auto-link by email if email is verified (prevents account takeover)
                 cursor.execute(
                     'SELECT id, name, email FROM developers WHERE email = %s AND firebase_uid IS NULL LIMIT 1',
                     [email],
@@ -167,7 +168,7 @@ def firebase_login(request):
     request.session['firebase_id_token_exp'] = decoded.get('exp')
 
     response = json_response()
-    _set_developer_cookie(response, decoded['sub'], email)
+    _set_developer_cookie(response, decoded['sub'], email, email_verified=decoded.get('email_verified', False))
     return response
 
 
