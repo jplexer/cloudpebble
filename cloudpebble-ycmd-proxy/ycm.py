@@ -130,7 +130,7 @@ class YCM(object):
         result = self._request("completions", request)
         if result.status_code == 200:
             response = result.json()
-            completions = list(map(self._clean_symbol, filter(is_valid_symbol, response['completions'])[:10]))
+            completions = list(map(self._clean_symbol, list(filter(is_valid_symbol, response['completions']))[:10]))
             return {
                 'completions': completions,
                 'completion_start_column': response['completion_start_column'],

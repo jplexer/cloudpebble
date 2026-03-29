@@ -105,7 +105,7 @@ def server_ws(process_uuid):
     return ''
 
 
-@app.route('/ycm/<process_uuid>/ws')
+@app.route('/ycm/<process_uuid>/ws', websocket=True)
 def ycm_ws(process_uuid):
     return server_ws(process_uuid)
 
