@@ -82,6 +82,10 @@ class Project(IdeModel):
             self.app_keys = '[]'
         if self.project_type == 'package' and self.app_version_label == '1.0':
             self.app_version_label = '1.0.0'
+        # Fall back to latest SDK if the project's version is no longer available.
+        valid_sdks = {v[0] for v in self.SDK_VERSIONS}
+        if self.sdk_version and self.sdk_version not in valid_sdks:
+            self.sdk_version = self.SDK_VERSIONS[0][0]
 
     def set_dependencies(self, dependencies):
         """ Set the project's dependencies from a dictionary.
