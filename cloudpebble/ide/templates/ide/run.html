@@ -11,17 +11,22 @@
 <style>
 html, body {
     height: 100%;
-    overflow: auto;
+    overflow: hidden;
     background-color: #333;
+}
+.main-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 .run-container {
     background-color: #292929;
-}
-.run-container {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 40px 20px 30px;
+    overflow-y: auto;
     overflow-x: hidden;
 }
 .run-app-info {
@@ -550,6 +555,23 @@ function launchAndInstall(platform) {
 $(function() {
     jquery_csrf_setup();
     CloudPebble.Emulator.init();
+
+    // On the run page, show the settings popover below the emulator
+    // instead of to the right (which gets clipped on narrow screens).
+    var $configure = $('#emulator-container .configure');
+    var popoverInstance = $configure.data('popover');
+    if (popoverInstance) {
+        popoverInstance.options.placement = 'bottom';
+        $configure.on('shown', function() {
+            var $popover = popoverInstance.$tip;
+            if (!$popover) return;
+            // Center the popover horizontally relative to its offset parent
+            var container = $popover.offsetParent()[0];
+            var containerWidth = container ? container.offsetWidth : $popover.parent().width();
+            var popoverWidth = $popover.outerWidth();
+            $popover.css('left', ((containerWidth - popoverWidth) / 2) + 'px');
+        });
+    }
 
     // Platform button click handlers
     $('#platform-buttons .platform-btn').click(function() {
