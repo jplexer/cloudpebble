@@ -123,6 +123,7 @@ def generate_resource_dict(project, resources):
 
 def generate_native_resource_dict(project, resources):
     resource_map = {"media": []}
+    menu_icon_emitted = False
     for resource in resources:
         for resource_id in resource.get_identifiers():
             d = {
@@ -140,8 +141,9 @@ def generate_native_resource_dict(project, resources):
                 d["storageFormat"] = resource_id.storage_format
             if resource_id.space_optimisation:
                 d["spaceOptimization"] = resource_id.space_optimisation
-            if resource.is_menu_icon:
+            if resource.is_menu_icon and not menu_icon_emitted:
                 d["menuIcon"] = True
+                menu_icon_emitted = True
             if resource_id.compatibility is not None:
                 d["compatibility"] = resource_id.compatibility
             if resource_id.target_platforms:
