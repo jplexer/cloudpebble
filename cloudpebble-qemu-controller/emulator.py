@@ -125,59 +125,44 @@ class Emulator(object):
 
     def _spawn_qemu(self):
         image_dir = self._find_qemu_images()
+        micro_flash = image_dir + "qemu_micro_flash.bin"
+        spi_flash = self.spi_image.name
+
         qemu_args = [
             settings.QEMU_BIN,
             "-rtc", "base=localtime",
-            "-pflash", image_dir + "qemu_micro_flash.bin",
-            "-serial", "null",  # this isn't useful, but...
-            "-serial", "tcp:127.0.0.1:%d,server,nowait" % self.bt_port,   # Used for bluetooth data
-            "-serial", "tcp:127.0.0.1:%d,server" % self.console_port,   # Used for console
+            "-kernel", micro_flash,
+            "-serial", "null",
+            "-serial", "tcp:127.0.0.1:%d,server=on,wait=off" % self.bt_port,   # Bluetooth
+            "-serial", "tcp:127.0.0.1:%d,server=on" % self.console_port,        # Console (blocks until connect)
             "-monitor", "stdio",
-            "-vnc", ":%d,password,websocket=%d" % (self.vnc_display, self.vnc_ws_port)
+            "-vnc", ":%d,password=on,websocket=%d" % (self.vnc_display, self.vnc_ws_port),
         ]
-        if self.platform == 'aplite':
-            qemu_args.extend([
-                "-machine", "pebble-bb2",
-                "-mtdblock", self.spi_image.name,
-                "-cpu", "cortex-m3",
-            ])
-        elif self.platform == 'basalt':
-            qemu_args.extend([
-                "-machine", "pebble-snowy-bb",
-                "-pflash", self.spi_image.name,
-                "-cpu", "cortex-m4",
-            ])
-        elif self.platform == 'chalk':
-            qemu_args.extend([
-                "-machine", "pebble-s4-bb",
-                "-pflash", self.spi_image.name,
-                "-cpu", "cortex-m4",
-            ])
-        elif self.platform == 'diorite':
-            qemu_args.extend([
-                "-machine", "pebble-silk-bb",
-                "-mtdblock", self.spi_image.name,
-                "-cpu", "cortex-m4",
-            ])
-        elif self.platform == 'emery':
-            qemu_args.extend([
-                "-machine", "pebble-snowy-emery-bb",
-                "-pflash", self.spi_image.name,
-                "-cpu", "cortex-m4",
-            ])
-        elif self.platform == 'gabbro':
-            qemu_args.extend([
-                "-machine", "pebble-spalding-gabbro-bb",
-                "-pflash", self.spi_image.name,
-                "-cpu", "cortex-m4",
-            ])
-        elif self.platform == 'flint':
-            qemu_args.extend([
-                "-machine", "pebble-silk-bb",
-                "-cpu", "cortex-m4",
-                "-mtdblock", self.spi_image.name,
-            ])
-        self.qemu = subprocess.Popen(qemu_args, cwd=settings.QEMU_DIR, stdout=None, stdin=subprocess.PIPE, stderr=None,
+        if settings.QEMU_DATA_DIR:
+            qemu_args[1:1] = ["-L", settings.QEMU_DATA_DIR]
+
+        # Legacy Pebble boards (SDK <= 4.9.148). All platforms target the
+        # legacy machine names available in the fork. When the new-boards
+        # SDK lands, flip these three to use the new devices:
+        #   emery  -> pebble-emery  + cortex-m33 + mtd_drive + audiodev
+        #   flint  -> pebble-flint  + cortex-m4  + mtd_drive + audiodev
+        #   gabbro -> pebble-gabbro + cortex-m33 + mtd_drive
+        # See pebble-tool pebble_tool/sdk/emulator.py _open_connection.
+        spi_drive = ['-drive', 'if=none,id=spi-flash,file=%s,format=raw' % spi_flash]
+        mtd_args = ['-mtdblock', spi_flash]
+
+        platform_args = {
+            'aplite':  ['-machine', 'pebble-bb2',                '-cpu', 'cortex-m3'] + mtd_args,
+            'basalt':  ['-machine', 'pebble-snowy-bb',           '-cpu', 'cortex-m4'] + spi_drive,
+            'chalk':   ['-machine', 'pebble-s4-bb',              '-cpu', 'cortex-m4'] + spi_drive,
+            'diorite': ['-machine', 'pebble-silk-bb',            '-cpu', 'cortex-m4'] + mtd_args,
+            'emery':   ['-machine', 'pebble-snowy-emery-bb',     '-cpu', 'cortex-m4'] + spi_drive,
+            'gabbro':  ['-machine', 'pebble-spalding-gabbro-bb', '-cpu', 'cortex-m4'] + spi_drive,
+            'flint':   ['-machine', 'pebble-silk-bb',            '-cpu', 'cortex-m4'] + mtd_args,
+        }
+        qemu_args.extend(platform_args[self.platform])
+
+        self.qemu = subprocess.Popen(qemu_args, stdout=None, stdin=subprocess.PIPE, stderr=None,
                                       preexec_fn=lambda: os.nice(19))
         self.qemu.stdin.write(b"change vnc password\n")
         self.qemu.stdin.write(("%s\n" % self.token[:8]).encode())
