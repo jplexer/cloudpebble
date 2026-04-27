@@ -29,8 +29,12 @@ FROM --platform=linux/amd64 python:3.11-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
   libsdl2-2.0-0 libpixman-1-0 libglib2.0-0 libpcre2-8-0 libsndio7.0 \
   libnettle8 libhogweed6 \
+  pulseaudio pulseaudio-utils \
+  procps \
   curl git ca-certificates \
   && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /run/cloudpebble-pipewire && chmod 0700 /run/cloudpebble-pipewire
 
 # Install qemu-pebble binary plus its data dir (pc-bios keymaps etc.).
 # QEMU looks up data relative to -L at runtime.
@@ -90,7 +94,12 @@ WORKDIR /code
 ENV QEMU_BIN=/usr/local/bin/qemu-pebble \
     QEMU_DATA_DIR=/usr/local/share/qemu-pebble/pc-bios \
     QEMU_IMAGE_ROOT=/sdk-images \
-    QCON_PORT=80
+    QCON_PORT=80 \
+    XDG_RUNTIME_DIR=/run/cloudpebble-pipewire \
+    PULSE_SERVER=unix:/run/cloudpebble-pipewire/pulse/native
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 80
-CMD ["python", "controller.py"]
+CMD ["/entrypoint.sh"]
