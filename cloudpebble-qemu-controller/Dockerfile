@@ -38,7 +38,7 @@ COPY --from=qemu-builder /qemu/dist/bin/qemu-pebble /usr/local/bin/qemu-pebble
 COPY --from=qemu-builder /qemu/pc-bios /usr/local/share/qemu-pebble/pc-bios
 
 # Download latest SDK and extract firmware images only
-RUN SDK_INFO=$(curl -sf https://sdk.repebble.com/v1/files/sdk-core/4.9.148) && \
+RUN SDK_INFO=$(curl -sf https://sdk.repebble.com/v1/files/sdk-core/4.9.166) && \
   SDK_URL=$(echo "$SDK_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['url'])") && \
   SDK_VERSION=$(echo "$SDK_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['version'])") && \
   echo "Downloading SDK $SDK_VERSION from $SDK_URL..." && \

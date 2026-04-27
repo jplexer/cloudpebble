@@ -85,6 +85,12 @@
                 if (mPendingPromise) {
                     if (state == 'normal') {
                         mRFB.get_keyboard().ungrab();
+                        // noVNC's rfb.js leaves Mouse.grab() commented out, so
+                        // no pointer events ever reach the VNC server. Attach
+                        // it on touch-capable platforms.
+                        if (mPlatform === 'emery' || mPlatform === 'gabbro') {
+                            mRFB.get_mouse().grab();
+                        }
                         mPingTimer = setInterval(sendPing, 100000);
                         setTimeout(function () {
                             resolve();
@@ -164,7 +170,7 @@
                         target: mCanvas[0],
                         encrypt: mSecure,
                         true_color: true, // Ideally this would be false, but qemu doesn't support that.
-                        local_cursor: false,
+                        local_cursor: (mPlatform === 'emery' || mPlatform === 'gabbro'),
                         shared: true,
                         view_only: false,
                         onUpdateState: updateStateHandler(resolve, reject)

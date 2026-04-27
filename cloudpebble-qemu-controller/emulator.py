@@ -141,27 +141,40 @@ class Emulator(object):
         if settings.QEMU_DATA_DIR:
             qemu_args[1:1] = ["-L", settings.QEMU_DATA_DIR]
 
-        # Legacy Pebble boards (SDK <= 4.9.148). All platforms target the
-        # legacy machine names available in the fork. When the new-boards
-        # SDK lands, flip these three to use the new devices:
-        #   emery  -> pebble-emery  + cortex-m33 + mtd_drive + audiodev
-        #   flint  -> pebble-flint  + cortex-m4  + mtd_drive + audiodev
-        #   gabbro -> pebble-gabbro + cortex-m33 + mtd_drive
-        # See pebble-tool pebble_tool/sdk/emulator.py _open_connection.
+        # Single rollback toggle: set to False to revert emery/flint/gabbro
+        # to their legacy machine names without touching the SDK pin.
+        use_new_boards = True
+
         spi_drive = ['-drive', 'if=none,id=spi-flash,file=%s,format=raw' % spi_flash]
         mtd_args = ['-mtdblock', spi_flash]
+        mtd_drive = ['-drive', 'if=mtd,format=raw,file=%s' % spi_flash]
+        # Silent audio backend: firmware boots and the DAC is wired but
+        # nothing is captured. The streaming pipeline lands as a follow-up.
+        audio_args = ['-audiodev', 'none,id=audio0', '-machine', 'audiodev=audio0']
 
-        platform_args = {
-            'aplite':  ['-machine', 'pebble-bb2',                '-cpu', 'cortex-m3'] + mtd_args,
-            'basalt':  ['-machine', 'pebble-snowy-bb',           '-cpu', 'cortex-m4'] + spi_drive,
-            'chalk':   ['-machine', 'pebble-s4-bb',              '-cpu', 'cortex-m4'] + spi_drive,
-            'diorite': ['-machine', 'pebble-silk-bb',            '-cpu', 'cortex-m4'] + mtd_args,
-            'emery':   ['-machine', 'pebble-snowy-emery-bb',     '-cpu', 'cortex-m4'] + spi_drive,
-            'gabbro':  ['-machine', 'pebble-spalding-gabbro-bb', '-cpu', 'cortex-m4'] + spi_drive,
-            'flint':   ['-machine', 'pebble-silk-bb',            '-cpu', 'cortex-m4'] + mtd_args,
-        }
+        if use_new_boards:
+            platform_args = {
+                'aplite':  ['-machine', 'pebble-bb2',      '-cpu', 'cortex-m3']  + mtd_args,
+                'basalt':  ['-machine', 'pebble-snowy-bb', '-cpu', 'cortex-m4']  + spi_drive,
+                'chalk':   ['-machine', 'pebble-s4-bb',    '-cpu', 'cortex-m4']  + spi_drive,
+                'diorite': ['-machine', 'pebble-silk-bb',  '-cpu', 'cortex-m4']  + mtd_args,
+                'emery':   ['-machine', 'pebble-emery',    '-cpu', 'cortex-m33'] + mtd_drive + audio_args,
+                'flint':   ['-machine', 'pebble-flint',    '-cpu', 'cortex-m4']  + mtd_drive + audio_args,
+                'gabbro':  ['-machine', 'pebble-gabbro',   '-cpu', 'cortex-m33'] + mtd_drive,
+            }
+        else:
+            platform_args = {
+                'aplite':  ['-machine', 'pebble-bb2',                '-cpu', 'cortex-m3'] + mtd_args,
+                'basalt':  ['-machine', 'pebble-snowy-bb',           '-cpu', 'cortex-m4'] + spi_drive,
+                'chalk':   ['-machine', 'pebble-s4-bb',              '-cpu', 'cortex-m4'] + spi_drive,
+                'diorite': ['-machine', 'pebble-silk-bb',            '-cpu', 'cortex-m4'] + mtd_args,
+                'emery':   ['-machine', 'pebble-snowy-emery-bb',     '-cpu', 'cortex-m4'] + spi_drive,
+                'gabbro':  ['-machine', 'pebble-spalding-gabbro-bb', '-cpu', 'cortex-m4'] + spi_drive,
+                'flint':   ['-machine', 'pebble-silk-bb',            '-cpu', 'cortex-m4'] + mtd_args,
+            }
         qemu_args.extend(platform_args[self.platform])
 
+        logging.info("spawning qemu (%s): %s", self.platform, " ".join(qemu_args))
         self.qemu = subprocess.Popen(qemu_args, stdout=None, stdin=subprocess.PIPE, stderr=None,
                                       preexec_fn=lambda: os.nice(19))
         self.qemu.stdin.write(b"change vnc password\n")
